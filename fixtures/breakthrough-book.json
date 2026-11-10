@@ -1,0 +1,94 @@
+{
+ "GOOD-1": [
+  {
+   "candidateId": "GOOD-1",
+   "lawId": "C4",
+   "outcome": "pass",
+   "source": "artifact-measurer",
+   "method": "artifact-battery: exists+sha256+symbol v1",
+   "observedAt": "2026-11-10T00:00:00.000Z",
+   "payload": "{\"path\":\"genuine.ts\",\"exists\":true,\"measuredSha256\":\"d5713239e2038e4e2a0541c67c91154bdbd9bf091ff6b4425fcf5eca7e9bf847\",\"digestMatch\":true,\"symbolFound\":true,\"verifiableClaimDeclared\":true}",
+   "digest": "23f6809d3b42d0d402c1c46364ed0eaf4b91d8d0310e744167c705cb5372f6c5"
+  },
+  {
+   "candidateId": "GOOD-1",
+   "lawId": "C8",
+   "outcome": "pass",
+   "source": "artifact-measurer",
+   "method": "artifact-battery: exists+sha256+symbol v1",
+   "observedAt": "2026-11-10T00:00:00.000Z",
+   "payload": "{\"path\":\"genuine.ts\",\"exists\":true,\"measuredSha256\":\"d5713239e2038e4e2a0541c67c91154bdbd9bf091ff6b4425fcf5eca7e9bf847\",\"digestMatch\":true,\"symbolFound\":true,\"verifiableClaimDeclared\":true}",
+   "digest": "90acda1ce79952399967ee16bba378b72abba7ab9c7913dcce806e90bb01b040"
+  },
+  {
+   "candidateId": "GOOD-1",
+   "lawId": "C9",
+   "outcome": "pass",
+   "source": "artifact-measurer",
+   "method": "artifact-battery: exists+sha256+symbol v1",
+   "observedAt": "2026-11-10T00:00:00.000Z",
+   "payload": "{\"path\":\"genuine.ts\",\"exists\":true,\"measuredSha256\":\"d5713239e2038e4e2a0541c67c91154bdbd9bf091ff6b4425fcf5eca7e9bf847\",\"digestMatch\":true,\"symbolFound\":true,\"verifiableClaimDeclared\":true}",
+   "digest": "9a23e076d21be18ebdf0a335c0459ad40b16e206898702a808291f3d6f7fd358"
+  },
+  {
+   "candidateId": "GOOD-1",
+   "lawId": "G6",
+   "outcome": "pass",
+   "source": "artifact-measurer",
+   "method": "artifact-battery: exists+sha256+symbol v1",
+   "observedAt": "2026-11-10T00:00:00.000Z",
+   "payload": "{\"path\":\"genuine.ts\",\"exists\":true,\"measuredSha256\":\"d5713239e2038e4e2a0541c67c91154bdbd9bf091ff6b4425fcf5eca7e9bf847\",\"digestMatch\":true,\"symbolFound\":true,\"verifiableClaimDeclared\":true}",
+   "digest": "5b9a6c2d87d8833a02a5b372502fd0349594b37d68ea4f2af8e0f021151291f5"
+  },
+  {
+   "candidateId": "GOOD-1",
+   "lawId": "S9",
+   "outcome": "pass",
+   "source": "artifact-measurer",
+   "method": "artifact-battery: exists+sha256+symbol v1",
+   "observedAt": "2026-11-10T00:00:00.000Z",
+   "payload": "{\"path\":\"genuine.ts\",\"exists\":true,\"measuredSha256\":\"d5713239e2038e4e2a0541c67c91154bdbd9bf091ff6b4425fcf5eca7e9bf847\",\"digestMatch\":true,\"symbolFound\":true,\"verifiableClaimDeclared\":true}",
+   "digest": "5fded6e0604522655de3afccca7c20d4b25f4cea0a2c7a9426f0b80f627d5526"
+  },
+  {
+   "candidateId": "GOOD-1",
+   "lawId": "C2",
+   "outcome": "pass",
+   "source": "artifact-measurer",
+   "method": "artifact-battery: exists+sha256+symbol v1",
+   "observedAt": "2026-11-10T00:00:00.000Z",
+   "payload": "{\"path\":\"genuine.ts\",\"exists\":true,\"measuredSha256\":\"d5713239e2038e4e2a0541c67c91154bdbd9bf091ff6b4425fcf5eca7e9bf847\",\"digestMatch\":true,\"symbolFound\":true,\"verifiableClaimDeclared\":true}",
+   "digest": "1bd768918b47775ca362832875edef4589afa0bf4fd4df05c00e3702db78fd52"
+  },
+  {
+   "candidateId": "GOOD-1",
+   "lawId": "M1",
+   "outcome": "pass",
+   "source": "artifact-measurer",
+   "method": "artifact-battery: exists+sha256+symbol v1",
+   "observedAt": "2026-11-10T00:00:00.000Z",
+   "payload": "{\"path\":\"genuine.ts\",\"exists\":true,\"measuredSha256\":\"d5713239e2038e4e2a0541c67c91154bdbd9bf091ff6b4425fcf5eca7e9bf847\",\"digestMatch\":true,\"symbolFound\":true,\"verifiableClaimDeclared\":true}",
+   "digest": "6a6ce983f6e2a601b07c424441b6822a443916f00056313eadf63dd2cfaf6915"
+  },
+  {
+   "candidateId": "GOOD-1",
+   "lawId": "M2",
+   "outcome": "pass",
+   "source": "artifact-measurer",
+   "method": "artifact-battery: exists+sha256+symbol v1",
+   "observedAt": "2026-11-10T00:00:00.000Z",
+   "payload": "{\"path\":\"genuine.ts\",\"exists\":true,\"measuredSha256\":\"d5713239e2038e4e2a0541c67c91154bdbd9bf091ff6b4425fcf5eca7e9bf847\",\"digestMatch\":true,\"symbolFound\":true,\"verifiableClaimDeclared\":true}",
+   "digest": "6edd79c125aa3b4e8cf346836d26c994501963e3082d26b0acfbab1830b421db"
+  },
+  {
+   "candidateId": "GOOD-1",
+   "lawId": "E2",
+   "outcome": "pass",
+   "source": "artifact-measurer",
+   "method": "artifact-battery: exists+sha256+symbol v1",
+   "observedAt": "2026-11-10T00:00:00.000Z",
+   "payload": "{\"path\":\"genuine.ts\",\"exists\":true,\"measuredSha256\":\"d5713239e2038e4e2a0541c67c91154bdbd9bf091ff6b4425fcf5eca7e9bf847\",\"digestMatch\":true,\"symbolFound\":true,\"verifiableClaimDeclared\":true}",
+   "digest": "33cfef6968afb4c5c20ae3e2ce105c917de7831efd2ee68d0fa2b047c6709532"
+  }
+ ]
+}
