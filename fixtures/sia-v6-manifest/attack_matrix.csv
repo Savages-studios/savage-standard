@@ -1,0 +1,16 @@
+attack_family,suite,mean_score,sample_count,worst_score
+coefficient_perturbation,symplectic_jacobian,0.0,10000,0.0
+nan_flood,adversarial_healing,67.49500743430733,9240,0.0
+inf_poisoning,adversarial_healing,67.49523443820345,9240,0.0
+hamiltonian_drift_amplification,adversarial_healing,99.71842626086149,9240,97.47635998991512
+memory_exhaustion,adversarial_healing,99.71542163421675,9240,97.47635998991512
+replay_tampering,adversarial_healing,99.99918124786885,9240,99.95639667737223
+proof_hash_mutation,adversarial_healing,99.99985080032468,9240,99.9726290000126
+proof_hash_mutation,proof_chain_integrity,0.0,3520,0.0
+hmac_mismatch,adversarial_healing,100.0,9240,100.0
+causal_boundary_violation,adversarial_healing,99.99916669723473,9240,99.97757019506359
+topology_bomb,adversarial_healing,99.9992284056355,9240,99.97903592894177
+phase_transition_spoofing,adversarial_healing,99.9991632814516,9240,99.9830081950801
+concurrency_race,adversarial_healing,99.98105890680155,9200,99.82117944906163
+byzantine_swarm_noise,adversarial_healing,99.99922582969096,9200,99.98594561927811
+anti_debug_evasion,adversarial_healing,99.99919167442543,9200,99.9779324251632
