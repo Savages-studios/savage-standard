@@ -3,9 +3,12 @@ every tamper fails loudly; unreachable evidence is UNVERIFIABLE, never a
 silent pass. Fixtures are real artifacts produced by the fix program
 (see fixtures/PROVENANCE.md). Stdlib unittest only."""
 import copy
+import gzip
 import json
 import os
+import shutil
 import sys
+import tempfile
 import unittest
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
@@ -230,6 +233,67 @@ class TestEnvelope(unittest.TestCase):
         env = self._wrapped()
         env["gate"]["verdict"] = "passed-everything"
         out = verify.verify(env)
+        self.assertEqual(out["verdict"], "REJECTED")
+
+
+class TestHelm(unittest.TestCase):
+    """SIA-E1: an external claim (HELM/CRFM — not a Savage system),
+    recomputed from the publisher's own public per-instance data."""
+    @classmethod
+    def setUpClass(cls):
+        # The publisher's per-instance file is 64,736,059 bytes of JSON;
+        # it is committed gzip-compressed (GitHub's git-blobs API refuses
+        # the raw blob) and decompresses to bytes whose SHA-256 is exactly
+        # the pin in the receipt — the verifier's input-hash leg proves
+        # that on every run below.
+        cls._tmp = tempfile.TemporaryDirectory()
+        cls.stats = os.path.join(cls._tmp.name, "per_instance_stats.json")
+        with gzip.open(os.path.join(
+                FIX, "helm-boolq-per-instance-stats.json.gz"), "rb") as src, \
+                open(cls.stats, "wb") as dst:
+            shutil.copyfileobj(src, dst)
+
+    @classmethod
+    def tearDownClass(cls):
+        cls._tmp.cleanup()
+
+    def setUp(self):
+        self.receipt = load("helm-boolq-receipt.json")
+
+    def test_genuine_recompute_verifies(self):
+        out = verify.verify(self.receipt, artifact_file=self.stats)
+        self.assertEqual(out["dialect"], "helm-benchmark")
+        self.assertEqual(out["verdict"], "VERIFIED")
+        self.assertEqual(out["claim"]["published"], 0.874)
+        self.assertEqual(out["claim"]["recomputed"], 0.874)
+        self.assertEqual(out["claim"]["comparison"], "match")
+
+    def test_envelope_wrapped_verifies(self):
+        env = load("helm-boolq-envelope.json")
+        out = verify.verify(env, artifact_file=self.stats)
+        self.assertEqual(out["verdict"], "VERIFIED")
+
+    def test_no_artifact_is_structural_never_full(self):
+        out = verify.verify(self.receipt)
+        self.assertEqual(out["verdict"], "VERIFIED-STRUCTURAL")
+        rec = [l for l in out["legs"] if l["name"] == "recomputation"][0]
+        self.assertEqual(rec["status"], "unverifiable")
+
+    def test_edited_recomputed_value_rejected(self):
+        bad = copy.deepcopy(self.receipt)
+        bad["recomputation"]["value"] = 0.99
+        out = verify.verify(bad, artifact_file=self.stats)
+        self.assertEqual(out["verdict"], "REJECTED")
+
+    def test_edited_published_value_rejected(self):
+        bad = copy.deepcopy(self.receipt)
+        bad["published"]["value"] = 0.5
+        out = verify.verify(bad, artifact_file=self.stats)
+        self.assertEqual(out["verdict"], "REJECTED")
+
+    def test_swapped_artifact_rejected(self):
+        out = verify.verify(self.receipt,
+                            artifact_file=os.path.join(FIX, "events.jsonl"))
         self.assertEqual(out["verdict"], "REJECTED")
 
 

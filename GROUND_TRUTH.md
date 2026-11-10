@@ -11,17 +11,26 @@ across the Savage estate, plus the claims-gate inventory that baselines
 SIA-E2's second metric. Python 3 standard library only; zero third-party
 dependencies (`pyproject.toml` declares `dependencies = []`).
 
+SIA-E1 "The Recomputable Benchmark" (this build) adds the first
+EXTERNAL dialect: `helm-benchmark`, a recompute adapter for a published
+benchmark result from a system Savage does not own — Stanford CRFM's
+HELM classic v0.4.0 — with the recompute minter in
+`savage_standard/helm.py`. See the SIA-E1 lines in the component table
+and Metrics below.
+
 ## Component state
 
 | Component | State | How to verify |
 |---|---|---|
 | `savage_standard/canonical.py` — JCS (RFC 8785) canonicalizer with ECMAScript number serialization; Python sorted-compact; Starr canonicalJson; fixed-order JS stringify | VERIFIED against producer-minted artifacts | Test suite recomputes real marketplace entry hashes / receipt digests, the sia-v6-core chain hash, Breakthrough record digests, and the Starr receipt hash from fixture bytes and matches them exactly. |
 | `savage_standard/envelope.py` — SRE-1 envelope: wrap, digest, structural checks | VERIFIED | `tests/test_savage_standard.py::TestEnvelope` (wrap→verify VERIFIED; tampered native → REJECTED; tampered envelope field → REJECTED). |
-| `savage_standard/dialects.py` — seven adapters: marketplace-delivery, siav6core-benchmark, relay-event-log, breakthrough-evidence, siav6-benchmark-manifest, ceros-promotion, starr-bounce | VERIFIED per the coverage table in the PR body | `python3 -m unittest discover -s tests` → 27 tests, all passing: genuine PASS + tamper FAIL per dialect. |
+| `savage_standard/dialects.py` — seven estate adapters: marketplace-delivery, siav6core-benchmark, relay-event-log, breakthrough-evidence, siav6-benchmark-manifest, ceros-promotion, starr-bounce | VERIFIED per the coverage table in the PR body | `python3 -m unittest discover -s tests` → genuine PASS + tamper FAIL per dialect. |
+| `savage_standard/helm.py` — SIA-E1 recompute minter: HELM per-instance Stat merge + native receipt (`savage/external-benchmark-recompute/1`) | VERIFIED on a real external artifact | `gunzip -dc fixtures/helm-boolq-per-instance-stats.json.gz > /tmp/per_instance_stats.json`, then `savage-verify recompute /tmp/per_instance_stats.json …` reproduces `fixtures/helm-boolq-receipt.json`: 874.0/1000.0 = 0.874. (The fixture is committed gzip-compressed — GitHub's git-blobs API refuses the raw 64.7 MB blob; the decompressed bytes are exactly the SHA-256 pin in the receipt.) |
+| `savage_standard/dialects.py::verify_helm` — the eighth dialect, `helm-benchmark`: re-derives the external claim from supplied public artifact bytes | VERIFIED | Suite `TestHelm` (6 tests): genuine VERIFIED native + envelope; no-artifact VERIFIED-STRUCTURAL; edited recomputed value, edited published value, and swapped artifact all REJECTED. |
 | `savage_standard/verify.py` — dialect detection + verdict assembly (VERIFIED / VERIFIED-STRUCTURAL / REJECTED / UNVERIFIABLE) | VERIFIED | Same suite; garbage input returns UNVERIFIABLE, never a pass. |
-| `savage_standard/cli.py` — `savage-verify` CLI (verify / wrap / claims) | VERIFIED | Smoke-run in the PR body; exit codes 0/1/2 by verdict. |
+| `savage_standard/cli.py` — `savage-verify` CLI (verify / wrap / recompute / claims) | VERIFIED | Smoke-run in the PR body; exit codes 0/1/2 by verdict. |
 | `savage_standard/claims.py` — claims-gate inventory | VERIFIED as an enumeration | Rows cite their sources (site repo main `4efd6486`, marketplace `catalog.json`, Stripe registry, fix-program results). The BEFORE number is definitional — the definition is printed in the module docstring so it can be argued with. |
-| `fixtures/` — real artifacts from the fix program | VERIFIED | `fixtures/PROVENANCE.md` names each artifact's origin. |
+| `fixtures/` — real artifacts from the fix program (and, for SIA-E1, one real external artifact) | VERIFIED | `fixtures/PROVENANCE.md` names each artifact's origin. |
 
 ## Metrics (Evolution Rule v2)
 
@@ -37,8 +46,41 @@ dependencies (`pyproject.toml` declares `dependencies = []`).
   it builds the instrument the number is measured with. Adoption
   (routing each line's public claims through the standard) is the
   follow-on work program.
+- SIA-E1 (external recompute) BEFORE: the chosen external claim —
+  HELM classic v0.4.0, BoolQ, Mistral v0.1 (7B), EM = 0.874 — had **0**
+  independent recompute paths through the standard: no SRE-1 receipt
+  existed for any external claim and `savage-verify` recognized no
+  external dialect; an outsider's only options were trusting HELM's
+  published tables or re-implementing HELM's aggregation from scratch.
+- SIA-E1 AFTER: the claim is recomputed from HELM's own public
+  per-instance statistics (pinned by SHA-256 in the receipt) under
+  HELM's own Stat-merge rule, read from HELM's source: **recomputed
+  0.874 (sum 874.0 / count 1000.0 over the run's 1,000 unperturbed
+  valid instances) vs published 0.874 — MATCH, delta 0.0**; the receipt
+  verifies **VERIFIED** through `savage-verify` (native and
+  envelope-wrapped) with the artifact supplied, and the external-claim
+  recomputability for this claim goes **0 → 1**. Suite 27 → 33 tests.
 
 ## What is NOT true
+
+- **SIA-E1 covers exactly ONE external claim, not external benchmarks
+  in general.** The adapter speaks one published format (HELM classic
+  per-instance statistics) and has been exercised on one claim (BoolQ /
+  Mistral v0.1 (7B) / exact_match / valid split, HELM classic v0.4.0).
+  The merge code is metric- and scenario-generic *within that format*,
+  but no other HELM scenario, release, or leaderboard — and no other
+  benchmark family (lm-eval, SWE-bench, WMT, …) — is covered, and no
+  other external claim has a receipt. The claims-gate inventory
+  (`claims.py`) is unchanged: it enumerates the estate's OWN claims,
+  and this external claim is not one of them (the 1/12 number does not
+  move).
+- **The SIA-E1 recompute verifies HELM's aggregation, not HELM's
+  measurements.** It proves the published 0.874 is the correct merge of
+  HELM's published per-instance statistics under HELM's published rule.
+  Whether those per-instance statistics faithfully record the model's
+  raw outputs is HELM's own attestation — the receipt's publisher field
+  says so, and the raw request/response artifacts (scenario_state /
+  display_predictions) were not independently re-scored in this build.
 
 - **CEROS signatures are NOT cryptographically verified here.** ML-DSA-87
   (FIPS 204) has no verifier in the Python standard library and the

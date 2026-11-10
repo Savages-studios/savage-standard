@@ -7,6 +7,12 @@ Usage:
                         --issuer-line L --issuer-system S --dialect D
                         --native-schema S --gate-name G --gate-verdict V
                         --recorded-at T [--prev-digest HEX] [-o OUT]
+  savage-verify recompute PER_INSTANCE_STATS --metric M --split S
+                        --benchmark B --release R --scenario SC --run RUN
+                        --model M-ID --model-display D --metric-label L
+                        --published-value V --published-source URL
+                        [--published-source URL ...] --source-url URL
+                        [--source-file NAME] [--recorded-at T] [-o OUT]
   savage-verify claims        (print the claims-gate inventory summary)
 
 Exit codes: 0 = VERIFIED or VERIFIED-STRUCTURAL; 1 = REJECTED;
@@ -17,8 +23,9 @@ from __future__ import annotations
 import argparse
 import json
 import sys
+from datetime import datetime, timezone
 
-from . import envelope, verify as verify_mod
+from . import envelope, helm, verify as verify_mod
 from .claims import INVENTORY, summary_line
 
 
@@ -57,6 +64,43 @@ def main(argv=None) -> int:
             gate_verdict=a.gate_verdict, recorded_at=a.recorded_at,
             prev_digest=a.prev_digest)
         text = json.dumps(env, indent=1) + "\n"
+        if a.out:
+            open(a.out, "w", encoding="utf-8").write(text)
+        else:
+            print(text, end="")
+        return 0
+    if argv and argv[0] == "recompute":
+        p = argparse.ArgumentParser(prog="savage-verify recompute")
+        p.add_argument("per_instance_stats")
+        for flag in ("metric", "split", "benchmark", "release", "scenario",
+                     "run", "model", "model-display", "metric-label",
+                     "source-url"):
+            p.add_argument(f"--{flag}", required=True)
+        p.add_argument("--published-value", required=True, type=float)
+        p.add_argument("--published-source", action="append", required=True)
+        p.add_argument("--source-file")
+        p.add_argument("--recorded-at")
+        p.add_argument("-o", "--out")
+        a = p.parse_args(argv[1:])
+        with open(a.per_instance_stats, "rb") as fh:
+            data = fh.read()
+        recorded = a.recorded_at or datetime.now(timezone.utc).strftime(
+            "%Y-%m-%dT%H:%M:%SZ")
+        try:
+            receipt = helm.mint_receipt(
+                data, benchmark=a.benchmark, release=a.release,
+                scenario=a.scenario, run=a.run, model=a.model,
+                model_display=a.model_display, metric=a.metric,
+                metric_label=a.metric_label, split=a.split,
+                published_value=a.published_value,
+                published_sources=a.published_source,
+                source_url=a.source_url,
+                source_file=a.source_file or "per_instance_stats.json",
+                recorded_at=recorded)
+        except ValueError as e:
+            print(f"recompute refused: {e}", file=sys.stderr)
+            return 2
+        text = json.dumps(receipt, indent=1) + "\n"
         if a.out:
             open(a.out, "w", encoding="utf-8").write(text)
         else:

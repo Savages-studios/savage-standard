@@ -1,4 +1,4 @@
-# savage-standard — SIA-E2 "One Promotion Standard"
+# savage-standard — SIA-E2 "One Promotion Standard" + SIA-E1 "The Recomputable Benchmark"
 
 **Ground truth first: [GROUND_TRUTH.md](GROUND_TRUTH.md)** — what this repo
 provably does, component by component, including what is NOT true.
@@ -28,6 +28,20 @@ This repo is the one standard they converge on:
    with the honest BEFORE number: **1 of 12 claim groups (8.3%) are
    gate-issued with outsider-recomputable receipts today.** The register
    target is 100%; this package is the instrument, not the adoption.
+4. **SIA-E1 — the external recompute adapter** (`savage_standard/helm.py`,
+   CLI subcommand `recompute`) — the standard pointed at a claim Savage
+   does NOT own: HELM classic v0.4.0, BoolQ, Mistral v0.1 (7B),
+   exact_match on the valid split, published at **0.874**. Before this
+   build, **0** external claims were recomputable through the standard —
+   an outsider had to trust HELM's published tables. The adapter merges
+   HELM's own per-instance statistics (public bucket, no account) with
+   HELM's own aggregation rule and mints a receipt
+   (`savage/external-benchmark-recompute/1`) that `savage-verify` checks
+   like any other dialect: published-vs-recomputed comparison, input
+   hash pin, and full re-derivation from the artifact bytes. Recomputed
+   value: **0.874** (874.0 / 1,000 unperturbed instances) — delta 0.0,
+   MATCH. Coverage is exactly this one claim; see GROUND_TRUTH.md for
+   what is NOT covered.
 
 ## Why a new tiny repo
 
@@ -44,7 +58,8 @@ dependencies — matching the sia-v6-core / Relay house style.
 python3 -m savage_standard.cli RECEIPT.json [--pair PAIR.json] [--artifacts DIR] [--file ARTIFACT]
 python3 -m savage_standard.cli wrap NATIVE.json --claim-id ... (see --help)
 python3 -m savage_standard.cli claims
-python3 -m unittest discover -s tests   # 27 tests: genuine + tamper per dialect
+python3 -m savage_standard.cli recompute PER_INSTANCE_STATS.json --metric exact_match --split valid ... (see --help)  # mint an external-benchmark recompute receipt
+python3 -m unittest discover -s tests   # 33 tests: genuine + tamper per dialect, incl. the HELM recompute dialect
 ```
 
 Exit codes: 0 = VERIFIED / VERIFIED-STRUCTURAL, 1 = REJECTED,
