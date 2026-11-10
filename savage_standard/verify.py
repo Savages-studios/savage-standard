@@ -31,6 +31,15 @@ def detect(obj) -> str | None:
         return None
     if obj.get("schema") == "savage/delivery-receipt/1":
         return "marketplace-delivery"
+    if obj.get("schema") == dialects.PAIR_SCHEMA:
+        return "marketplace-delivery-pair"
+    _pay, _dlv = obj.get("payment"), obj.get("delivery")
+    if (isinstance(_pay, dict) and isinstance(_dlv, dict)
+            and _pay.get("schema") == "savage/delivery-receipt/1"
+            and _dlv.get("schema") == "savage/delivery-receipt/1"):
+        # The ledger's receiptsFor() shape, unmarked: both members are
+        # delivery receipts, so the object is a pair, not a new dialect.
+        return "marketplace-delivery-pair"
     if obj.get("schema") == "sia.benchmark-receipt.v1":
         return "siav6core-benchmark"
     if "certification_status" in obj and "artifacts" in obj:
@@ -99,6 +108,12 @@ def verify(obj, *, pair=None, artifact_dir=None, artifact_file=None,
         return _verdict(result, legs)
     if kind == "marketplace-delivery":
         result = dialects.verify_marketplace(obj, pair=pair, artifact_dir=artifact_dir)
+    elif kind == "marketplace-delivery-pair":
+        # The pair travels inside the object (and, in an envelope, under
+        # its digest and signature); the --pair side input is not used.
+        result = dialects.verify_marketplace_pair(obj.get("payment"),
+                                                  obj.get("delivery"),
+                                                  artifact_dir=artifact_dir)
     elif kind == "siav6core-benchmark":
         records = obj if isinstance(obj, list) else [obj]
         result = dialects.verify_siacore(records)

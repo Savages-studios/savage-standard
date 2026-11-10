@@ -1,0 +1,73 @@
+{
+ "payment": {
+  "schema": "savage/delivery-receipt/1",
+  "kind": "payment",
+  "orderId": "order-fix81-bridge-1",
+  "entry": {
+   "schema": "savage/delivery-ledger/1",
+   "seq": 0,
+   "kind": "payment",
+   "orderId": "order-fix81-bridge-1",
+   "recordedAt": "2026-11-10T15:00:00.000Z",
+   "payload": {
+    "provider": "stripe",
+    "providerEventId": "evt_fix81_0001",
+    "checkoutSessionId": "cs_live_fix81_0001",
+    "accountId": "acct_1UYG8zCG8Je0vWdb",
+    "livemode": true,
+    "sku": "COMM-20260908-MARKETPLACE-FACTURFORGE-PACK100",
+    "offerName": "FacturForge Pack",
+    "amountMinor": 1900,
+    "currency": "usd",
+    "buyerRefHash": "510ef33b0c280e6d22d4856f62a41eaaae02610615254d9e2ae21d67cbb22089",
+    "paymentLinkId": "plink_1UYLc4CG8Je0vWdb4j8wdoN1"
+   },
+   "prevHash": null,
+   "entryHash": "ecde8430e2157d619a9a729bcb1efe653b3181032e5f70bdc389dc49fd1a48a2"
+  },
+  "chainHead": "c7c66c8384950d31d4edc09f39a60465aa3bd86b4007025c0636c3cf71f56cf3",
+  "boundaries": [
+   "This receipt pair proves that the ledger recorded a payment entry and a delivery entry bound to each other and to the named artifact digests. It does not prove the payment itself occurred: the payment entry is the operator's record of a provider event, and its truth rests on the upstream webhook/readback verification.",
+   "recordedAt is producer-reported and is NOT a trusted timestamp.",
+   "Digests attest to bytes at recording time only: the delivered artifact is the byte string whose SHA-256 is recorded, nothing more.",
+   "Receipts are hash-bound, not signed. Authenticity of the ledger rests on publication of its chain head; no certification of any kind is made or implied."
+  ],
+  "receiptDigest": "8aa98296a3951cc8a6435e8c85599fbb5c84c662fc0845947fa7ae971f0686d9"
+ },
+ "delivery": {
+  "schema": "savage/delivery-receipt/1",
+  "kind": "delivery",
+  "orderId": "order-fix81-bridge-1",
+  "entry": {
+   "schema": "savage/delivery-ledger/1",
+   "seq": 1,
+   "kind": "delivery",
+   "orderId": "order-fix81-bridge-1",
+   "recordedAt": "2026-11-10T15:00:01.000Z",
+   "payload": {
+    "sku": "COMM-20260908-MARKETPLACE-FACTURFORGE-PACK100",
+    "artifacts": [
+     {
+      "name": "facturforge-pack.zip",
+      "sha256": "01510f41e0b9710e99d85ef80e4e1c6f5ffbaa77c0af13729c20a2bee0985a3a",
+      "bytes": 62
+     }
+    ],
+    "channel": "email",
+    "deliveryRefHash": "2272b7c0d1f8c08f8dc395eb35d60e3ec78f52cb10a9c0cad60e9e7f4cd147ff",
+    "paymentEntryHash": "ecde8430e2157d619a9a729bcb1efe653b3181032e5f70bdc389dc49fd1a48a2"
+   },
+   "prevHash": "ecde8430e2157d619a9a729bcb1efe653b3181032e5f70bdc389dc49fd1a48a2",
+   "entryHash": "c7c66c8384950d31d4edc09f39a60465aa3bd86b4007025c0636c3cf71f56cf3"
+  },
+  "chainHead": "c7c66c8384950d31d4edc09f39a60465aa3bd86b4007025c0636c3cf71f56cf3",
+  "paymentReceiptDigest": "8aa98296a3951cc8a6435e8c85599fbb5c84c662fc0845947fa7ae971f0686d9",
+  "boundaries": [
+   "This receipt pair proves that the ledger recorded a payment entry and a delivery entry bound to each other and to the named artifact digests. It does not prove the payment itself occurred: the payment entry is the operator's record of a provider event, and its truth rests on the upstream webhook/readback verification.",
+   "recordedAt is producer-reported and is NOT a trusted timestamp.",
+   "Digests attest to bytes at recording time only: the delivered artifact is the byte string whose SHA-256 is recorded, nothing more.",
+   "Receipts are hash-bound, not signed. Authenticity of the ledger rests on publication of its chain head; no certification of any kind is made or implied."
+  ],
+  "receiptDigest": "8d1baa6db22fe5086c0e7beafc5e643496c1652b088430478405d79df8721f3c"
+ }
+}
