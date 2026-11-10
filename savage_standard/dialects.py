@@ -208,6 +208,117 @@ def verify_marketplace_pair(payment, delivery,
     return r
 
 
+# ── Atlas call receipts (savage-api-atlas, fix #82) ─────────────────────────
+#
+# The producer is savage-api-atlas's call.py; its envelope dialect is
+# "atlas-call" over native schema "savage/atlas-call/1". The envelope
+# layer itself is the SHARED SRE-1 implementation (vendored into the
+# Atlas from this package — see vendor/atlas_call_v1.py for the
+# pre-convergence producer, whose receipts this adapter still judges);
+# this adapter owns only the dialect legs the envelope layer cannot
+# recompute: the producer's own native-consistency rules, lifted
+# leg-for-leg from call.py's verify_envelope (gate agreement, the
+# response-body digest pointer, body content, result consistency).
+#
+# Adaptation rule (same as the pair side-channel fix in #81): the
+# verdict semantics must not depend on which side of the envelope the
+# checker sits. The dialect legs below recompute the producer's own
+# native-consistency rules from the receipt itself. Note on chain
+# handling: the envelope layer already binds chain.prev_digest into
+# the recomputed envelope digest, so a rewritten predecessor pointer
+# fails envelope-digest under BOTH verifiers; the producer's separate
+# chain-link leg additionally compares the pointer against a sequence
+# the verifier is shown (verify_call_log / benchmark chains), which a
+# single-envelope verifier has no input for — the standard therefore
+# runs no chain-link leg here, and the producer keeps that check in
+# its own sequence-aware paths (see the fix-#82 convergence record in
+# GROUND_TRUTH).
+
+ATLAS_DIALECT = "atlas-call"
+ATLAS_NATIVE_SCHEMA = "savage/atlas-call/1"
+
+#: SHA-256 of the pre-convergence call.py (savage-api-atlas main
+#: d9c24a21) against which this adapter's leg semantics were derived.
+#: The byte-exact source travels with this package at
+#: vendor/atlas_call_v1.py; tests pin the two together.
+ATLAS_CALL_SOURCE_SHA256 = (
+    "85bf414fe1485ffdac345388fae3fbaf8182c9b3e0c6988ea9803d65451fa38e")
+
+
+def is_atlas_call_envelope(env) -> bool:
+    """True when an SRE-1 envelope carries an Atlas call receipt: the
+    issuer names the atlas-call dialect AND the subject names the
+    atlas-call native schema. Both must agree — a mismatched envelope
+    falls back to generic native handling (which finds no dialect and
+    says so), never to a half-applied adapter."""
+    if not isinstance(env, dict):
+        return False
+    issuer = env.get("issuer") or {}
+    subject = env.get("subject") or {}
+    return (issuer.get("dialect") == ATLAS_DIALECT
+            and subject.get("native_schema") == ATLAS_NATIVE_SCHEMA)
+
+
+def verify_atlas_call(native, envelope=None) -> DialectResult:
+    """The atlas-call dialect legs, recomputed from the native receipt
+    (and, for the gate/pointer legs, the wrapping envelope — the same
+    inputs the producer's own verify_envelope uses).
+
+    Legs mirror call.py exactly:
+    - gate-verdict-vs-native: the envelope's gate.verdict equals the
+      native receipt's status (an envelope WITHOUT a gate member
+      cannot satisfy this — the producer fails it the same way);
+    - body-digest-pointer: when the native records a response-body
+      digest, subject.artifact_hashes must carry that exact digest as
+      a response-body entry;
+    - body-content: response bytes are never embedded, so content is
+      unverifiable in principle — the leg that caps every body-carrying
+      Atlas receipt at VERIFIED-STRUCTURAL, by the producer's design;
+    - result-consistency: a success status without an HTTP status is a
+      contradiction and fails.
+    """
+    r = DialectResult(dialect="atlas-call")
+    if not isinstance(native, dict):
+        r.legs.append(Leg("native-shape", "fail",
+                          "native receipt is not an object"))
+        return r
+    env = envelope if isinstance(envelope, dict) else {}
+    r.claim = {"need": native.get("need"), "status": native.get("status"),
+               "route": ((native.get("route_chosen") or {}).get("name"))}
+    verdict = (env.get("gate") or {}).get("verdict")
+    r.legs.append(Leg("gate-verdict-vs-native",
+                      "pass" if verdict == native.get("status") else "fail",
+                      "gate.verdict equals the native receipt's status"))
+    result = native.get("result") or {}
+    body_sha = result.get("body_sha256")
+    if body_sha:
+        recorded = None
+        for h in (env.get("subject") or {}).get("artifact_hashes", []):
+            if isinstance(h, dict) and h.get("kind") == "response-body":
+                recorded = h.get("sha256")
+        r.legs.append(Leg("body-digest-pointer",
+                          "pass" if recorded == body_sha else "fail",
+                          "subject.artifact_hashes carries the response body digest"))
+        r.legs.append(Leg("body-content", "unverifiable",
+                          "response bytes are not embedded; body content itself "
+                          "cannot be recomputed from the receipt alone"))
+    else:
+        r.legs.append(Leg("body-digest-pointer", "unverifiable",
+                          "no response body digest recorded (no body was captured)"))
+    if result.get("http_status") is None and native.get("status") == "success":
+        r.legs.append(Leg("result-consistency", "fail",
+                          "status success without an HTTP status"))
+    else:
+        r.legs.append(Leg("result-consistency", "pass",
+                          "status and HTTP status are consistent"))
+    r.notes.append("Atlas call receipt: proves the stored URL answered at "
+                   "call time with the recorded status and body digest — "
+                   "not that the body was the data the need wanted "
+                   "(relevance is the producer's benchmark claim, audited "
+                   "separately). recorded_at is producer-reported.")
+    return r
+
+
 # ── sia-v6-core benchmark receipts ──────────────────────────────────────────
 
 def verify_siacore(records: list) -> DialectResult:

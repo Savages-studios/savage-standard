@@ -39,6 +39,7 @@ yet, so no production envelope is signed today.
 | `savage_standard/signing.py` + `savage_standard/key_registry.json` — estate key custody: public registry (committed), operator-side key generation (private key written mode-0600 to an operator-chosen path outside any repo, never copied by this code), envelope signing, and the verifier's signature legs | VERIFIED as a mechanism; NO real estate key exists yet | `tests/test_signing.py` (17 tests: signed envelope VERIFIED end to end; the pre-custody re-digest forgery REJECTED; tampered signature REJECTED; wrong public key REJECTED; unknown/revoked key caps at VERIFIED-STRUCTURAL; unsigned envelopes unchanged; a signed marketplace-delivery envelope verifies with its pair passed as a side input — the pair itself travels under the signature only via the `marketplace-delivery-pair` dialect, fix #81). The shipped registry holds exactly ONE entry — a throwaway DEMO key (usage `demo`) whose private half was destroyed at build time after signing `fixtures/signed-envelope-demo.json`; its leg passes with a detail stating it attests nothing. |
 | `savage_standard/dialects.py` — seven estate adapters: marketplace-delivery, siav6core-benchmark, relay-event-log, breakthrough-evidence, siav6-benchmark-manifest, ceros-promotion, starr-bounce | VERIFIED per the coverage table in the PR body | `python3 -m unittest discover -s tests` → genuine PASS + tamper FAIL per dialect. |
 | `savage_standard/dialects.py::verify_marketplace_pair` + `verify.py` detection — the `marketplace-delivery-pair` dialect: a marketplace delivery-ledger receipt PAIR (payment + delivery) is a first-class native of the verifier, detected by its `savage/delivery-receipt-pair/1` marker or by the ledger's unmarked `receiptsFor()` shape | VERIFIED (fix #81, 2026-11-10) | `tests/test_delivery_pair.py` (12 tests): both committed fixture pairs verify with every binding leg passing (the minted pair reaches VERIFIED with its artifact bytes supplied); a signed envelope over a real pair verifies VERIFIED with the signature leg passing; an edited amount, an honestly-re-digested payment, a member swap, and a malformed member are all REJECTED; an unsigned pair envelope adds no signature leg. See Metrics below. |
+| `savage_standard/dialects.py::verify_atlas_call` + `verify.py` envelope routing — the `atlas-call` dialect: savage-api-atlas call receipts verify natively. Envelope-embedded only: detection requires issuer dialect `atlas-call` AND subject native_schema `savage/atlas-call/1`; the adapter recomputes the producer's four dialect legs (gate-verdict-vs-native, body-digest-pointer, body-content, result-consistency) | VERIFIED (fix #82, 2026-11-10) | `tests/test_atlas_call.py` (12 tests) against three genuine landed benchmark receipts (`tests/fixtures/atlas-call-envelopes.json`, copied verbatim from savage-api-atlas `benchmarks/needs-benchmark.json` at atlas main `d9c24a21`): success/refused/failed envelopes verify VERIFIED-STRUCTURAL with the dialect legs passing (body-content unverifiable by the producer's design); claim-flip and native-digest-zeroed REJECTED (Knights' 2026-11-10 controls); honest-redigest status/body/http-status tampers fail their dialect legs; a signed atlas envelope verifies with the signature leg passing and its re-digest forgery REJECTED. The pre-convergence producer source travels at `vendor/atlas_call_v1.py`, pinned by `dialects.ATLAS_CALL_SOURCE_SHA256`. See Metrics below. |
 | `savage_standard/helm.py` — SIA-E1 recompute minter: HELM per-instance Stat merge + native receipt (`savage/external-benchmark-recompute/1`) | VERIFIED on a real external artifact | `gunzip -dc fixtures/helm-boolq-per-instance-stats.json.gz > /tmp/per_instance_stats.json`, then `savage-verify recompute /tmp/per_instance_stats.json …` reproduces `fixtures/helm-boolq-receipt.json`: 874.0/1000.0 = 0.874. (The fixture is committed gzip-compressed — GitHub's git-blobs API refuses the raw 64.7 MB blob; the decompressed bytes are exactly the SHA-256 pin in the receipt.) |
 | `savage_standard/dialects.py::verify_helm` — the eighth dialect, `helm-benchmark`: re-derives the external claim from supplied public artifact bytes | VERIFIED | Suite `TestHelm` (6 tests): genuine VERIFIED native + envelope; no-artifact VERIFIED-STRUCTURAL; edited recomputed value, edited published value, and swapped artifact all REJECTED. |
 | `savage_standard/verify.py` — dialect detection + verdict assembly (VERIFIED / VERIFIED-STRUCTURAL / REJECTED / UNVERIFIABLE) | VERIFIED | Same suite; garbage input returns UNVERIFIABLE, never a pass. Envelope path additionally emits an `envelope-signature` leg when a `signatures` member is present (pass / fail / unverifiable per the registry); unsigned envelopes produce no such leg and keep their exact pre-custody verdicts. |
@@ -48,6 +49,27 @@ yet, so no production envelope is signed today.
 
 ## Metrics (Evolution Rule v2)
 
+- Fix #82 Atlas envelope convergence (2026-11-10; BEFORE measured on
+  the pristine trees — savage-standard @ `f551ec40`, savage-api-atlas @
+  `d9c24a21`): atlas-call dialect legs executed by this verifier on a
+  genuine Atlas receipt **0 → 4** (gate-verdict-vs-native,
+  body-digest-pointer, body-content, result-consistency; before, the
+  envelope shell verified with dialect None and a single unverifiable
+  dialect-detection leg); the 30 landed benchmark receipts keep their
+  VERIFIED-STRUCTURAL verdicts, now WITH the dialect legs passing;
+  Atlas envelopes signable under the custody stack **no → yes**
+  (mechanism proven under a throwaway key; the producer's own digest
+  core could not exclude a signatures member, so its verifier could
+  never have accepted one); suite **62 → 74** tests, all passing. The
+  producer side converged in the same fix: Atlas vendors this package's
+  `canonical.py` + `envelope.py` byte-identically under
+  `vendor/savage_standard/` (SHA-256-pinned in its suite) and its local
+  JCS/digest/wrap implementations are deleted — one envelope
+  implementation. What convergence does NOT yet mean: savage-standard
+  is not published as an installable package anywhere, so the vendored
+  copy is pinned-and-proven rather than imported; and no production
+  Atlas envelope is signed (no real estate key exists — see "What is
+  NOT true").
 - Fix #81 delivery-pair bridge (2026-11-10; BEFORE measured on the
   pre-bridge tree against a real pair minted by the ledger's own code
   from savage-marketplace main `bfaa3a18`; repro
@@ -161,6 +183,15 @@ yet, so no production envelope is signed today.
   `recorded_at` (it can no longer be edited after signing) but the
   value remains issuer-reported — the signature proves the issuer
   attested that time, nothing more.
+- **Atlas-call chain sequence is not checked here (fix #82).** An
+  Atlas envelope's `chain.prev_digest` is bound by the recomputed
+  envelope digest, so a rewritten pointer fails `envelope-digest`; but
+  whether the pointer equals the PREVIOUS envelope's digest is a
+  sequence claim this single-envelope verifier is not shown the inputs
+  for — the producer's chain-aware paths (`verify_call_log`, the
+  benchmark chain test) own that check. A bare atlas-call native (no
+  envelope) is NOT detected as a dialect: the native is not
+  self-describing, and convergence is envelope-level by design.
 - **Producers do not sign at mint time yet — with one path now built,
   at this layer.** Signing is an envelope-level step (`savage-verify
   sign`, or `signing.sign_envelope`) applied after wrapping. As of fix
