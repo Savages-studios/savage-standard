@@ -1,0 +1,91 @@
+{
+ "schema": "savage/receipt-envelope/1",
+ "envelope_version": 1,
+ "claim": {
+  "id": "signed-demo-starr-bounce-sie2-1",
+  "kind": "certification",
+  "statement": "DEMO: bounce measured across the Starr QC gates (signed with the registry's throwaway demo key)"
+ },
+ "issuer": {
+  "line": "Starr",
+  "system": "star",
+  "dialect": "starr-bounce"
+ },
+ "subject": {
+  "native_schema": "starr.bounce-receipt.v1",
+  "native_digest": "67f663a273f4dbc31288ac0cf81f35719966e0771aefaa5b70bb9e62ade54715",
+  "artifact_hashes": []
+ },
+ "evidence": [],
+ "gate": {
+  "name": "audioQc",
+  "verdict": "sealed"
+ },
+ "recorded_at": "2026-11-10T20:53:00Z",
+ "timestamp_trust": "producer-reported; NOT a trusted timestamp",
+ "chain": {
+  "prev_digest": null
+ },
+ "native": {
+  "receiptVersion": "starr.bounce-receipt.v1",
+  "bounceId": "sie2-proof-bounce-1",
+  "artifact": {
+   "fileName": "bounce_sie2.wav",
+   "format": "WAV",
+   "encoding": "PCM",
+   "bitsPerSample": 16,
+   "channels": 2,
+   "sampleRate": 44100,
+   "frames": 44100,
+   "sizeInBytes": 176444,
+   "sha256": "7463688161c3c491a9ce3e6252b8ca5220206c40fa46631fdd1daed569bf556d"
+  },
+  "measurements": {
+   "durationSec": 1,
+   "sampleRate": 44100,
+   "channelCount": 2,
+   "frames": 44100,
+   "integratedLoudnessLufs": -12.77,
+   "truePeakDbtp": -12.04,
+   "samplePeak": 0.25,
+   "fullScale": {
+    "threshold": 0.999,
+    "sampleCount": 0,
+    "fraction": 0
+   },
+   "silence": {
+    "floorDbfs": -45,
+    "minDurationSec": 0.7,
+    "intervals": [],
+    "leadingSec": 0,
+    "trailingSec": 0,
+    "maxInternalSec": 0
+   }
+  },
+  "thresholds": {
+   "truePeakMaxDbtp": -1,
+   "fullScaleThreshold": 0.999,
+   "maxInternalSilenceSec": 2,
+   "loudnessTargetLufs": -13,
+   "loudnessToleranceLufs": 1
+  },
+  "verdicts": [],
+  "issuedAt": "2026-11-10T16:32:24.203Z",
+  "receiptHash": "71aa2a51fab4c770a117141805a8afc9e4a85bad78c2655d688a9f06d7e41edf"
+ },
+ "boundaries": [
+  "This envelope wraps a native receipt verbatim; it adds identification, evidence pointers, and a hash chain \u2014 not trust.",
+  "recorded_at is producer-reported and is NOT a trusted timestamp.",
+  "This envelope is SIGNED by its issuer (RSASSA-PKCS1-v1_5/SHA-256; verify against the savage-standard key registry). The signature binds every envelope field, including recorded_at \u2014 which remains issuer-reported: a signature is not a trusted third-party timestamp. The signature is classical RSA, NOT post-quantum.",
+  "A VERIFIED verdict means every recomputable check in the native dialect passed; legs that cannot be recomputed are reported UNVERIFIABLE, never silently passed."
+ ],
+ "envelope_digest": "7311c766079f7445b39e52d686fb4bab35fecd29692fefaf49b4659891803cf2",
+ "signatures": [
+  {
+   "algorithm": "RSASSA-PKCS1-v1_5/SHA-256",
+   "key_id": "estate-demo-2026-11-10",
+   "signed_at": "2026-11-10T20:53:00Z",
+   "value": "Blol9vPF_PGfTBkERkhqtC-sn5v6jM9ZVHmh2k5Xo0n6JjC1ygms7tcP7AfXJmcDDPuHm10PiVkXPyllmWhVX4uefWh2XLE2ufsFj2tmPxb0_vmM81qG5jn4FgMMHnTKP0z0gA3uJE6lxM1SfJcFgKmffsDz5cykicxFMgLmwiYcWuiKvBwPJHwl94Eai3jYQ1DhUFbKEaZ9PU7atlWCV9msS2cGzdmIdzUAlxa5Fd3wj2iRWHzDqog1_OblMpnGoO8gyYRxoPVX2-bVv6WwCfvkPwCa_KH92QNcLFly7Z1RMllpBIsTYWN1Ad6tjKi6yFakw1jEsOyH1yi_qNGdgQ"
+  }
+ ]
+}

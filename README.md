@@ -42,6 +42,23 @@ This repo is the one standard they converge on:
    value: **0.874** (874.0 / 1,000 unperturbed instances) — delta 0.0,
    MATCH. Coverage is exactly this one claim; see GROUND_TRUTH.md for
    what is NOT covered.
+5. **Estate key custody** (`savage_standard/signing.py`,
+   `savage_standard/rsa.py`, `savage_standard/key_registry.json`) —
+   SRE-1 envelopes can now carry a real issuer signature
+   (RSASSA-PKCS1-v1_5 / SHA-256, Savage-original stdlib code,
+   cross-checked against OpenSSL). Before this build, envelopes were
+   hash-bound only: the verifier emitted zero signature legs, and a
+   forged envelope with an honestly recomputed digest still verified
+   VERIFIED — an unkeyed hash cannot stop a re-digesting forger. Now
+   the forgery is REJECTED on the signature leg, genuine signed
+   envelopes verify end to end, and unknown or revoked keys cap the
+   verdict at VERIFIED-STRUCTURAL. Custody model: public keys are
+   committed in the registry (reviewable, revocable); private keys are
+   generated and held by the operator outside any repository and read
+   only at signing time. The shipped registry holds one throwaway
+   DEMO key (private half destroyed) proving the mechanism — no real
+   estate key has been minted yet; that is the operator's act
+   (`savage-verify keygen`), and only the public entry gets committed.
 
 ## Why a new tiny repo
 
@@ -59,7 +76,9 @@ python3 -m savage_standard.cli RECEIPT.json [--pair PAIR.json] [--artifacts DIR]
 python3 -m savage_standard.cli wrap NATIVE.json --claim-id ... (see --help)
 python3 -m savage_standard.cli claims
 python3 -m savage_standard.cli recompute PER_INSTANCE_STATS.json --metric exact_match --split valid ... (see --help)  # mint an external-benchmark recompute receipt
-python3 -m unittest discover -s tests   # 33 tests: genuine + tamper per dialect, incl. the HELM recompute dialect
+python3 -m savage_standard.cli keygen --key-id ID --out ~/outside-any-repo/estate.key.json   # operator only: prints the PUBLIC registry entry; the private key never enters a repo
+python3 -m savage_standard.cli sign ENVELOPE.json --key-file ~/outside-any-repo/estate.key.json -o SIGNED.json
+python3 -m unittest discover -s tests   # 50 tests: genuine + tamper per dialect, incl. the HELM recompute dialect and envelope signatures
 ```
 
 Exit codes: 0 = VERIFIED / VERIFIED-STRUCTURAL, 1 = REJECTED,

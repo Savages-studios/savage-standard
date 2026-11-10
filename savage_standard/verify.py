@@ -15,7 +15,7 @@ from __future__ import annotations
 import json
 import os
 
-from . import dialects, envelope
+from . import dialects, envelope, signing
 
 
 def detect(obj) -> str | None:
@@ -69,8 +69,13 @@ def _verdict(result: dialects.DialectResult, extra_legs=()) -> dict:
 
 
 def verify(obj, *, pair=None, artifact_dir=None, artifact_file=None,
-           bound_laws=None, score_claim=None) -> dict:
-    """Verify a receipt object (native or SRE-1 envelope)."""
+           bound_laws=None, score_claim=None, key_registry=None) -> dict:
+    """Verify a receipt object (native or SRE-1 envelope).
+
+    ``key_registry``: a parsed savage key registry (see signing.py) for
+    checking envelope signatures; defaults to the registry shipped in
+    this package. Ignored for native receipts and unsigned envelopes.
+    """
     kind = detect(obj)
     if kind is None:
         return {"verdict": "UNVERIFIABLE", "dialect": None, "claim": {},
@@ -78,7 +83,8 @@ def verify(obj, *, pair=None, artifact_dir=None, artifact_file=None,
                           "detail": "input matches no known estate dialect"}],
                 "notes": []}
     if kind == "envelope":
-        legs = envelope.check_envelope(obj)
+        legs = envelope.check_envelope(obj) + signing.signature_legs(
+            obj, registry=key_registry)
         if any(l.status == "fail" for l in legs):
             inner = dialects.DialectResult(dialect="envelope", legs=[])
             return _verdict(inner, legs)

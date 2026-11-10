@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "savage-standard"
-version = "0.1.0"
+version = "0.2.0"
 description = "SIA-E2 One Promotion Standard: SRE-1 receipt envelope + universal verifier for every Savage receipt dialect"
 requires-python = ">=3.10"
 dependencies = []
@@ -14,3 +14,6 @@ savage-verify = "savage_standard.cli:main"
 
 [tool.setuptools]
 packages = ["savage_standard"]
+
+[tool.setuptools.package-data]
+savage_standard = ["key_registry.json"]

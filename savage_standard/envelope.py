@@ -15,7 +15,13 @@ Honesty rules baked into the format (modeled on the delivery-ledger's
 boundary statements):
 - ``recorded_at`` is producer-reported and is NOT a trusted timestamp.
 - Wrapping adds NO signature. The envelope is hash-bound, exactly as
-  strong as the native dialect it wraps — never stronger.
+  strong as the native dialect it wraps — never stronger. Signing is a
+  separate, optional step (``savage_standard/signing.py``): when an
+  issuer signs, the ``signatures`` member carries the signature and
+  the boundary statement is replaced with one that says so. The
+  ``signatures`` member is excluded from the envelope digest (as
+  ``envelope_digest`` itself is); the signature is computed OVER the
+  digest, binding every other field.
 """
 from __future__ import annotations
 
@@ -67,7 +73,12 @@ def wrap(native, *, claim_id: str, claim_kind: str, statement: str,
 
 
 def envelope_digest(env: dict) -> str:
-    core = {k: v for k, v in env.items() if k != "envelope_digest"}
+    # ``signatures`` is excluded alongside ``envelope_digest``: the
+    # signature is computed over this digest, so it cannot be an input
+    # to it. Envelopes without a signatures member digest exactly as
+    # they did before the custody build (proven by the fixture suite).
+    core = {k: v for k, v in env.items()
+            if k not in ("envelope_digest", "signatures")}
     return hashlib.sha256(canonical.jcs(core).encode("utf-8")).hexdigest()
 
 
