@@ -1,0 +1,47 @@
+{
+ "receiptVersion": "starr.bounce-receipt.v1",
+ "bounceId": "sie2-proof-bounce-1",
+ "artifact": {
+  "fileName": "bounce_sie2.wav",
+  "format": "WAV",
+  "encoding": "PCM",
+  "bitsPerSample": 16,
+  "channels": 2,
+  "sampleRate": 44100,
+  "frames": 44100,
+  "sizeInBytes": 176444,
+  "sha256": "7463688161c3c491a9ce3e6252b8ca5220206c40fa46631fdd1daed569bf556d"
+ },
+ "measurements": {
+  "durationSec": 1,
+  "sampleRate": 44100,
+  "channelCount": 2,
+  "frames": 44100,
+  "integratedLoudnessLufs": -12.77,
+  "truePeakDbtp": -12.04,
+  "samplePeak": 0.25,
+  "fullScale": {
+   "threshold": 0.999,
+   "sampleCount": 0,
+   "fraction": 0
+  },
+  "silence": {
+   "floorDbfs": -45,
+   "minDurationSec": 0.7,
+   "intervals": [],
+   "leadingSec": 0,
+   "trailingSec": 0,
+   "maxInternalSec": 0
+  }
+ },
+ "thresholds": {
+  "truePeakMaxDbtp": -1,
+  "fullScaleThreshold": 0.999,
+  "maxInternalSilenceSec": 2,
+  "loudnessTargetLufs": -13,
+  "loudnessToleranceLufs": 1
+ },
+ "verdicts": [],
+ "issuedAt": "2026-11-10T16:32:24.203Z",
+ "receiptHash": "71aa2a51fab4c770a117141805a8afc9e4a85bad78c2655d688a9f06d7e41edf"
+}
