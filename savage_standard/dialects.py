@@ -69,6 +69,26 @@ def _hex64(s) -> bool:
 _ENTRY_BODY_KEYS = ("schema", "seq", "kind", "orderId", "recordedAt",
                     "payload", "prevHash")
 
+#: Schema of the pair object: the two receipts of one order, as returned
+#: by the ledger's ``receiptsFor()`` / ``orderStatus()``, plus this
+#: marker. The pair — not either receipt alone — is the marketplace's
+#: unit of proof: the delivery receipt binds the payment receipt by
+#: entry hash and by receipt digest, and neither binding is checkable
+#: from one side alone.
+PAIR_SCHEMA = "savage/delivery-receipt-pair/1"
+_RECEIPT_SCHEMA = "savage/delivery-receipt/1"
+
+
+def marketplace_pair_native(payment: dict, delivery: dict) -> dict:
+    """Form the pair native payload for an SRE-1 envelope from the two
+    receipts of one fulfilled order (the dicts the ledger's
+    ``receiptsFor()`` returns). The receipts travel verbatim; this adds
+    only the pair schema marker so the envelope's native is
+    self-describing. An unmarked ``{"payment": …, "delivery": …}``
+    object in exactly the ``receiptsFor()`` shape is also detected as
+    this dialect (see ``verify.detect``)."""
+    return {"schema": PAIR_SCHEMA, "payment": payment, "delivery": delivery}
+
 
 def verify_marketplace(receipt: dict, pair: dict | None = None,
                        artifact_dir: str | None = None) -> DialectResult:
@@ -113,6 +133,78 @@ def verify_marketplace(receipt: dict, pair: dict | None = None,
                 r.legs.append(Leg(f"artifact:{a['name']}", "unverifiable",
                                   "artifact bytes not supplied; digest attests bytes at recording time only"))
     r.notes.append("Hash-bound, not signed (the dialect's own boundary). recordedAt is producer-reported.")
+    return r
+
+
+def verify_marketplace_pair(payment, delivery,
+                            artifact_dir: str | None = None) -> DialectResult:
+    """Verify a delivery-ledger receipt PAIR as one native object.
+
+    The pair is the dialect's unit of proof (the producer's own
+    ``verifyReceiptPair`` takes both receipts, never one). Before this
+    adapter, the universal verifier understood only a single receipt:
+    a pair presented whole matched no dialect (UNVERIFIABLE), and the
+    one signed route carried the delivery receipt inside the envelope
+    while the payment receipt rode outside it as an unsigned
+    verifier-side input (``--pair``), so no signature bound it and no
+    pair leg ran unless the caller supplied it. As a pair native, both
+    receipts sit inside the envelope, under its digest and signature.
+
+    Legs mirror the producer's receipts-alone checks, recomputed
+    independently: each receipt's entry hash and receipt digest, the
+    slot/shape coherence of both members, the four pair bindings
+    (order, entry-hash binding, receipt-digest binding, SKU), and the
+    delivered-artifact legs. Malformed members fail the pair-shape leg
+    and stop there — a claimed pair that is not a pair is REJECTED,
+    never passed and never crashed on.
+    """
+    r = DialectResult(dialect="marketplace-delivery-pair")
+    problems = []
+    for slot, rec, want in (("payment", payment, "payment"),
+                            ("delivery", delivery, "delivery")):
+        if not isinstance(rec, dict):
+            problems.append(f"{slot} member is not an object")
+            continue
+        if rec.get("schema") != _RECEIPT_SCHEMA:
+            problems.append(f"{slot} member schema is not {_RECEIPT_SCHEMA}")
+        if rec.get("kind") != want:
+            problems.append(f"{slot} member kind is {rec.get('kind')!r}, not {want!r}")
+        entry = rec.get("entry")
+        if not isinstance(entry, dict):
+            problems.append(f"{slot} member carries no ledger entry")
+            continue
+        if entry.get("kind") != want:
+            problems.append(f"{slot} entry kind is {entry.get('kind')!r}, not {want!r}")
+        if entry.get("orderId") != rec.get("orderId"):
+            problems.append(f"{slot} entry belongs to a different order than its receipt")
+    r.legs.append(Leg("pair-shape", "fail" if problems else "pass",
+                      "; ".join(problems) if problems else
+                      "both members are delivery receipts in their named slots, "
+                      "each entry agreeing with its receipt"))
+    if problems:
+        r.notes.append("Pair members are malformed; the pair's own binding "
+                       "checks cannot run and are not claimed.")
+        return r
+
+    def prefixed(result, prefix):
+        return [Leg(f"{prefix}{leg.name}", leg.status, leg.detail)
+                for leg in result.legs]
+
+    r.legs += prefixed(verify_marketplace(payment), "payment-")
+    r.legs += prefixed(verify_marketplace(delivery), "delivery-")
+    paired = verify_marketplace(delivery, pair=payment,
+                                artifact_dir=artifact_dir)
+    r.legs += [leg for leg in paired.legs
+               if leg.name.startswith(("pair-", "artifact:"))]
+    pay_payload = (payment.get("entry") or {}).get("payload") or {}
+    r.claim = {"kind": "pair", "orderId": payment.get("orderId"),
+               "sku": pay_payload.get("sku"),
+               "paymentEntryHash": (payment.get("entry") or {}).get("entryHash"),
+               "deliveryEntryHash": (delivery.get("entry") or {}).get("entryHash")}
+    r.notes.append("Hash-bound, not signed (the dialect's own boundary). "
+                   "recordedAt is producer-reported. A signature, when the "
+                   "pair travels in an SRE-1 envelope, is the envelope's "
+                   "signature leg — the receipts themselves carry none.")
     return r
 
 

@@ -78,7 +78,7 @@ python3 -m savage_standard.cli claims
 python3 -m savage_standard.cli recompute PER_INSTANCE_STATS.json --metric exact_match --split valid ... (see --help)  # mint an external-benchmark recompute receipt
 python3 -m savage_standard.cli keygen --key-id ID --out ~/outside-any-repo/estate.key.json   # operator only: prints the PUBLIC registry entry; the private key never enters a repo
 python3 -m savage_standard.cli sign ENVELOPE.json --key-file ~/outside-any-repo/estate.key.json -o SIGNED.json
-python3 -m unittest discover -s tests   # 50 tests: genuine + tamper per dialect, incl. the HELM recompute dialect and envelope signatures
+python3 -m unittest discover -s tests   # 62 tests: genuine + tamper per dialect, incl. the HELM recompute dialect, envelope signatures, and the signed delivery-pair bridge
 ```
 
 Exit codes: 0 = VERIFIED / VERIFIED-STRUCTURAL, 1 = REJECTED,

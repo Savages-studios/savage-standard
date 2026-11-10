@@ -36,8 +36,9 @@ yet, so no production envelope is signed today.
 | `savage_standard/canonical.py` — JCS (RFC 8785) canonicalizer with ECMAScript number serialization; Python sorted-compact; Starr canonicalJson; fixed-order JS stringify | VERIFIED against producer-minted artifacts | Test suite recomputes real marketplace entry hashes / receipt digests, the sia-v6-core chain hash, Breakthrough record digests, and the Starr receipt hash from fixture bytes and matches them exactly. |
 | `savage_standard/envelope.py` — SRE-1 envelope: wrap, digest, structural checks | VERIFIED | `tests/test_savage_standard.py::TestEnvelope` (wrap→verify VERIFIED; tampered native → REJECTED; tampered envelope field → REJECTED). The digest core now also excludes the `signatures` member (the signature is computed over the digest); envelopes without one digest byte-identically to before, which the fixture suite proves on every run. |
 | `savage_standard/rsa.py` — RSASSA-PKCS1-v1_5 with SHA-256 (RFC 8017): Miller-Rabin key generation, EMSA-PKCS1-v1_5 encoding, sign/verify — Savage-original, stdlib only | VERIFIED, incl. against the reference implementation | `tests/test_signing.py::TestRsa` (EMSA block asserted byte-exact against the RFC 8017 construction; sign/verify round-trip; garbage rejected). Cross-checked against OpenSSL during development in BOTH directions: OpenSSL verified this code's signature, and this code verified OpenSSL's. Classical scheme — NOT post-quantum, not constant-time (see "What is NOT true"). |
-| `savage_standard/signing.py` + `savage_standard/key_registry.json` — estate key custody: public registry (committed), operator-side key generation (private key written mode-0600 to an operator-chosen path outside any repo, never copied by this code), envelope signing, and the verifier's signature legs | VERIFIED as a mechanism; NO real estate key exists yet | `tests/test_signing.py` (17 tests: signed envelope VERIFIED end to end; the pre-custody re-digest forgery REJECTED; tampered signature REJECTED; wrong public key REJECTED; unknown/revoked key caps at VERIFIED-STRUCTURAL; unsigned envelopes unchanged; a signed marketplace-delivery envelope verifies with its pair). The shipped registry holds exactly ONE entry — a throwaway DEMO key (usage `demo`) whose private half was destroyed at build time after signing `fixtures/signed-envelope-demo.json`; its leg passes with a detail stating it attests nothing. |
+| `savage_standard/signing.py` + `savage_standard/key_registry.json` — estate key custody: public registry (committed), operator-side key generation (private key written mode-0600 to an operator-chosen path outside any repo, never copied by this code), envelope signing, and the verifier's signature legs | VERIFIED as a mechanism; NO real estate key exists yet | `tests/test_signing.py` (17 tests: signed envelope VERIFIED end to end; the pre-custody re-digest forgery REJECTED; tampered signature REJECTED; wrong public key REJECTED; unknown/revoked key caps at VERIFIED-STRUCTURAL; unsigned envelopes unchanged; a signed marketplace-delivery envelope verifies with its pair passed as a side input — the pair itself travels under the signature only via the `marketplace-delivery-pair` dialect, fix #81). The shipped registry holds exactly ONE entry — a throwaway DEMO key (usage `demo`) whose private half was destroyed at build time after signing `fixtures/signed-envelope-demo.json`; its leg passes with a detail stating it attests nothing. |
 | `savage_standard/dialects.py` — seven estate adapters: marketplace-delivery, siav6core-benchmark, relay-event-log, breakthrough-evidence, siav6-benchmark-manifest, ceros-promotion, starr-bounce | VERIFIED per the coverage table in the PR body | `python3 -m unittest discover -s tests` → genuine PASS + tamper FAIL per dialect. |
+| `savage_standard/dialects.py::verify_marketplace_pair` + `verify.py` detection — the `marketplace-delivery-pair` dialect: a marketplace delivery-ledger receipt PAIR (payment + delivery) is a first-class native of the verifier, detected by its `savage/delivery-receipt-pair/1` marker or by the ledger's unmarked `receiptsFor()` shape | VERIFIED (fix #81, 2026-11-10) | `tests/test_delivery_pair.py` (12 tests): both committed fixture pairs verify with every binding leg passing (the minted pair reaches VERIFIED with its artifact bytes supplied); a signed envelope over a real pair verifies VERIFIED with the signature leg passing; an edited amount, an honestly-re-digested payment, a member swap, and a malformed member are all REJECTED; an unsigned pair envelope adds no signature leg. See Metrics below. |
 | `savage_standard/helm.py` — SIA-E1 recompute minter: HELM per-instance Stat merge + native receipt (`savage/external-benchmark-recompute/1`) | VERIFIED on a real external artifact | `gunzip -dc fixtures/helm-boolq-per-instance-stats.json.gz > /tmp/per_instance_stats.json`, then `savage-verify recompute /tmp/per_instance_stats.json …` reproduces `fixtures/helm-boolq-receipt.json`: 874.0/1000.0 = 0.874. (The fixture is committed gzip-compressed — GitHub's git-blobs API refuses the raw 64.7 MB blob; the decompressed bytes are exactly the SHA-256 pin in the receipt.) |
 | `savage_standard/dialects.py::verify_helm` — the eighth dialect, `helm-benchmark`: re-derives the external claim from supplied public artifact bytes | VERIFIED | Suite `TestHelm` (6 tests): genuine VERIFIED native + envelope; no-artifact VERIFIED-STRUCTURAL; edited recomputed value, edited published value, and swapped artifact all REJECTED. |
 | `savage_standard/verify.py` — dialect detection + verdict assembly (VERIFIED / VERIFIED-STRUCTURAL / REJECTED / UNVERIFIABLE) | VERIFIED | Same suite; garbage input returns UNVERIFIABLE, never a pass. Envelope path additionally emits an `envelope-signature` leg when a `signatures` member is present (pass / fail / unverifiable per the registry); unsigned envelopes produce no such leg and keep their exact pre-custody verdicts. |
@@ -47,6 +48,16 @@ yet, so no production envelope is signed today.
 
 ## Metrics (Evolution Rule v2)
 
+- Fix #81 delivery-pair bridge (2026-11-10; BEFORE measured on the
+  pre-bridge tree against a real pair minted by the ledger's own code
+  from savage-marketplace main `bfaa3a18`; repro
+  `python3 -m pytest tests/ -q` → `tests/test_delivery_pair.py`):
+  marketplace receipt pairs natively understood **0 → 1 dialect**
+  (`marketplace-delivery-pair`); pair legs executed on a real pair
+  **0 → 10**; signed envelopes whose signature covers the
+  payment↔delivery binding **0 → mechanism proven** (VERIFIED with the
+  signature leg PASS under a throwaway key; the re-digest claim forgery
+  REJECTED by the signature leg); suite **50 → 62** tests, all passing.
 - BEFORE: receipt dialects verifiable by a single independent tool =
   **0 of 7 (0%)** — measured from the pre-build tree (`BEFORE-MEASUREMENT.md`).
 - AFTER: **7 of 7 dialects** covered by the one verifier, each with a
@@ -150,16 +161,28 @@ yet, so no production envelope is signed today.
   `recorded_at` (it can no longer be edited after signing) but the
   value remains issuer-reported — the signature proves the issuer
   attested that time, nothing more.
-- **Producers do not sign at mint time yet.** Signing is an
-  envelope-level step (`savage-verify sign`, or `signing.sign_envelope`)
-  applied after wrapping; no producer's minting code was modified in
-  this build either. Wiring the estate's issuing paths (the EVO-9
-  delivery ledger first) to wrap-and-sign at issuance is the named
-  follow-on. A `signatures` member can also be stripped by an attacker
-  — the result is an unsigned envelope whose missing signature leg is
-  visible in the verifier output; whether a given surface REQUIRES
-  signed envelopes is a policy for its operator, not something this
-  format can enforce on a bare file.
+- **Producers do not sign at mint time yet — with one path now built,
+  at this layer.** Signing is an envelope-level step (`savage-verify
+  sign`, or `signing.sign_envelope`) applied after wrapping. As of fix
+  #81 (2026-11-10) the EVO-9 delivery ledger's pair is the first
+  issuing path the format fully covers: the pair is a native dialect
+  (`marketplace-delivery-pair`), so a fulfillment-side issuance path
+  exists end to end — mint the pair, form the pair native
+  (`dialects.marketplace_pair_native`), wrap, sign — and is proven with
+  throwaway keys in `tests/test_delivery_pair.py`. What does NOT yet
+  exist: (a) any PRODUCTION signing key — the registry still holds only
+  the destroyed demo key, so no production envelope can be signed until
+  the operator mints the real estate key (the named operator act
+  above); (b) producer-side wiring — savage-marketplace's deployed
+  fulfillment code does not itself call wrap+sign at issuance; the
+  marketplace side of fix #81 updates its boundary text only, and the
+  ledger's bare receipts remain hash-bound exactly as before (the
+  signature lives on the envelope, never on the receipt). A
+  `signatures` member can also be stripped by an attacker — the result
+  is an unsigned envelope whose missing signature leg is visible in the
+  verifier output; whether a given surface REQUIRES signed envelopes
+  is a policy for its operator, not something this format can enforce
+  on a bare file.
 - **No producer was modified.** Every dialect adapter re-implements its
   dialect's checks from the producer's source; producers keep minting
   exactly as before. Convergence of the *gate* (Foundry's arbiter +
