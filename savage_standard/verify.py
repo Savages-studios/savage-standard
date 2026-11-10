@@ -39,6 +39,8 @@ def detect(obj) -> str | None:
         return "ceros-promotion"
     if obj.get("receiptVersion") == "starr.bounce-receipt.v1":
         return "starr-bounce"
+    if obj.get("schema") == "savage/external-benchmark-recompute/1":
+        return "helm-benchmark"
     if obj and all(isinstance(v, list) and v and isinstance(v[0], dict)
                    and "digest" in v[0] and "lawId" in v[0] for v in obj.values()):
         return "breakthrough-evidence"
@@ -113,6 +115,9 @@ def verify(obj, *, pair=None, artifact_dir=None, artifact_file=None,
         result = dialects.verify_ceros(obj)
     elif kind == "starr-bounce":
         result = dialects.verify_starr(obj, artifact_path=artifact_file)
+    elif kind == "helm-benchmark":
+        result = dialects.verify_helm(obj, artifact_path=artifact_file,
+                                      artifact_dir=artifact_dir)
     else:  # pragma: no cover
         result = dialects.DialectResult(dialect=kind)
     return _verdict(result)

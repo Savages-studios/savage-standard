@@ -401,3 +401,83 @@ def verify_starr(receipt: dict, artifact_path: str | None = None) -> DialectResu
         r.legs.append(Leg("artifact-bytes", "unverifiable",
                           "bounced file not supplied; measurement values are producer-reported"))
     return r
+
+
+# ── HELM external benchmark recompute (SIA-E1) ──────────────────────────────
+
+def verify_helm(receipt: dict, artifact_path: str | None = None,
+                artifact_dir: str | None = None) -> DialectResult:
+    from . import helm as helm_mod
+    r = DialectResult(dialect="helm-benchmark")
+    claim = receipt.get("claim") or {}
+    pub = receipt.get("published") or {}
+    inp = receipt.get("inputs") or {}
+    rec = receipt.get("recomputation") or {}
+    r.claim = {"benchmark": claim.get("benchmark"), "release": claim.get("release"),
+               "scenario": claim.get("scenario"), "model": claim.get("model"),
+               "metric": claim.get("metric"), "split": claim.get("split"),
+               "published": pub.get("value"), "recomputed": rec.get("value"),
+               "comparison": rec.get("comparison")}
+    shape_ok = (
+        receipt.get("schema") == helm_mod.SCHEMA
+        and all(isinstance(claim.get(k), str) and claim.get(k)
+                for k in ("benchmark", "release", "scenario", "run", "model", "metric", "split"))
+        and isinstance(pub.get("value"), (int, float))
+        and isinstance(pub.get("sources"), list) and len(pub.get("sources") or []) > 0
+        and _hex64(inp.get("sha256"))
+        and isinstance(inp.get("bytes"), int)
+        and isinstance(inp.get("entries"), int)
+        and isinstance(rec.get("value"), (int, float))
+        and isinstance(rec.get("instances_with_metric"), int)
+        and isinstance(rec.get("sum"), (int, float))
+        and isinstance(rec.get("count"), (int, float))
+        and isinstance(rec.get("tolerance"), (int, float))
+        and rec.get("comparison") in ("match", "delta"))
+    r.legs.append(Leg("receipt-shape", "pass" if shape_ok else "fail",
+                      "external-benchmark-recompute fields per savage_standard/helm.py"))
+    # The comparison statement must be arithmetically consistent with the
+    # receipt's own numbers — checkable without the artifact.
+    if shape_ok:
+        delta = float(rec["value"]) - float(pub["value"])
+        consistent = (abs(delta - float(rec.get("delta_vs_published") or 0.0)) <= 1e-12
+                      and rec["comparison"] == ("match" if abs(delta) <= float(rec["tolerance"]) else "delta"))
+        r.legs.append(Leg("published-comparison", "pass" if consistent else "fail",
+                          f"recomputed {rec['value']} vs published {pub['value']}: "
+                          f"delta {delta:+.6g}, stated {rec['comparison']}"))
+    else:
+        r.legs.append(Leg("published-comparison", "unverifiable",
+                          "receipt shape failed; comparison cannot be assessed"))
+    path = artifact_path
+    if path is None and artifact_dir and inp.get("file"):
+        cand = os.path.join(artifact_dir, os.path.basename(inp["file"]))
+        path = cand if os.path.exists(cand) else None
+    if not path or not os.path.exists(path):
+        r.legs.append(Leg("input-hash", "unverifiable",
+                          "public per-instance artifact not supplied; the receipt pins it by URL + sha256"))
+        r.legs.append(Leg("recomputation", "unverifiable",
+                          "no artifact bytes to recompute from"))
+        r.notes.append("Supply the public per_instance_stats.json (URL in the receipt) "
+                       "via --file/--artifacts to recompute the claim itself.")
+        return r
+    data = _read_bytes(path)
+    ok = _sha(data) == inp.get("sha256") and len(data) == inp.get("bytes")
+    r.legs.append(Leg("input-hash", "pass" if ok else "fail",
+                      "supplied artifact bytes re-hashed against the receipt's pinned input"))
+    try:
+        entries = helm_mod.parse_per_instance_stats(data)
+        merged = helm_mod.merge_metric(entries, str(claim.get("metric")), str(claim.get("split")))
+        ok = (merged["entries_in_file"] == inp.get("entries")
+              and merged["instances_with_metric"] == rec.get("instances_with_metric")
+              and abs(merged["sum"] - float(rec["sum"])) <= 1e-9
+              and abs(merged["count"] - float(rec["count"])) <= 1e-9
+              and merged["value"] is not None
+              and abs(merged["value"] - float(rec["value"])) <= 1e-12)
+        detail = (f"merged {merged['instances_with_metric']} instance(s): "
+                  f"sum {merged['sum']} / count {merged['count']} = {merged['value']}")
+        r.legs.append(Leg("recomputation", "pass" if ok else "fail", detail))
+    except Exception as e:
+        r.legs.append(Leg("recomputation", "fail", f"artifact does not recompute: {e}"))
+    r.notes.append("External claim: the publisher is HELM/CRFM, not Savage. "
+                   "A VERIFIED verdict means the published value reproduces from "
+                   "HELM's own public per-instance data under HELM's own merge rule.")
+    return r

@@ -1,0 +1,87 @@
+{
+ "schema": "savage/receipt-envelope/1",
+ "envelope_version": 1,
+ "claim": {
+  "id": "helm-classic-v040-boolq-mistral-7b-v01-em",
+  "kind": "external-benchmark-result",
+  "statement": "HELM classic v0.4.0, BoolQ: Mistral v0.1 (7B) exact match (leaderboard EM) = 0.874 on the valid split \u2014 874 of 1,000 unperturbed instances \u2014 as published by Stanford CRFM in the run stats and the BoolQ leaderboard table, and independently recomputed from HELM's public per-instance statistics."
+ },
+ "issuer": {
+  "line": "Savage Standard",
+  "system": "savage-standard",
+  "dialect": "helm-benchmark"
+ },
+ "subject": {
+  "native_schema": "savage/external-benchmark-recompute/1",
+  "native_digest": "587bda97d6c3773a9626382df3f786e198bd3fee70c5d34cb11378f2cd704bbb",
+  "artifact_hashes": [
+   "0f508c22378f44e60d87f9bf4dea2ce1d8f0e34a4564d496dc2e98646486a0c5"
+  ]
+ },
+ "evidence": [
+  {
+   "name": "per_instance_stats.json",
+   "url": "https://storage.googleapis.com/crfm-helm-public/classic/benchmark_output/runs/v0.4.0/boolq%3Amodel%3Dmistralai_mistral-7b-v0.1%2Cdata_augmentation%3Dcanonical/per_instance_stats.json",
+   "sha256": "0f508c22378f44e60d87f9bf4dea2ce1d8f0e34a4564d496dc2e98646486a0c5",
+   "bytes": 64736059
+  }
+ ],
+ "gate": {
+  "name": "independent-recompute",
+  "verdict": "match"
+ },
+ "recorded_at": "2026-11-10T18:44:38Z",
+ "timestamp_trust": "producer-reported; NOT a trusted timestamp",
+ "chain": {
+  "prev_digest": null
+ },
+ "native": {
+  "schema": "savage/external-benchmark-recompute/1",
+  "dialect": "helm-benchmark",
+  "claim": {
+   "benchmark": "HELM classic",
+   "release": "v0.4.0",
+   "scenario": "BoolQ",
+   "run": "boolq:model=mistralai_mistral-7b-v0.1,data_augmentation=canonical",
+   "model": "mistralai/mistral-7b-v0.1",
+   "model_display": "Mistral v0.1 (7B)",
+   "metric": "exact_match",
+   "metric_label": "EM (exact match)",
+   "split": "valid",
+   "publisher": "Stanford CRFM \u2014 HELM (external; not a Savage system)"
+  },
+  "published": {
+   "value": 0.874,
+   "sources": [
+    "https://storage.googleapis.com/crfm-helm-public/classic/benchmark_output/runs/v0.4.0/boolq%3Amodel%3Dmistralai_mistral-7b-v0.1%2Cdata_augmentation%3Dcanonical/stats.json",
+    "https://storage.googleapis.com/crfm-helm-public/classic/benchmark_output/releases/v0.4.0/groups/json/boolq_boolq.json"
+   ]
+  },
+  "inputs": {
+   "file": "per_instance_stats.json",
+   "url": "https://storage.googleapis.com/crfm-helm-public/classic/benchmark_output/runs/v0.4.0/boolq%3Amodel%3Dmistralai_mistral-7b-v0.1%2Cdata_augmentation%3Dcanonical/per_instance_stats.json",
+   "sha256": "0f508c22378f44e60d87f9bf4dea2ce1d8f0e34a4564d496dc2e98646486a0c5",
+   "bytes": 64736059,
+   "entries": 5000
+  },
+  "recomputation": {
+   "rule": "HELM Stat merge (statistic.py): for every per_instance_stats entry that is itself unperturbed (no top-level 'perturbation' key \u2014 perturbed variants feed the separate Robustness/Fairness columns), take the stat whose name.name == metric, name.split == split, and whose name carries no 'perturbation' key; the recomputed value is sum(stat.sum) / sum(stat.count) over those entries.",
+   "instances_with_metric": 1000,
+   "sum": 874.0,
+   "count": 1000.0,
+   "value": 0.874,
+   "delta_vs_published": 0.0,
+   "tolerance": 1e-09,
+   "comparison": "match"
+  },
+  "recorded_at": "2026-11-10T18:44:38Z",
+  "recorded_at_trust": "producer-reported; NOT a trusted timestamp"
+ },
+ "boundaries": [
+  "This envelope wraps a native receipt verbatim; it adds identification, evidence pointers, and a hash chain \u2014 not trust.",
+  "recorded_at is producer-reported and is NOT a trusted timestamp.",
+  "The envelope is hash-bound, not signed. Estate key custody for envelope-level signatures is still owed.",
+  "A VERIFIED verdict means every recomputable check in the native dialect passed; legs that cannot be recomputed are reported UNVERIFIABLE, never silently passed."
+ ],
+ "envelope_digest": "23e64473f5f5f030152f6dd81b88e41f1bb5ae55cd64e6eda4813d69e8849795"
+}
