@@ -1,0 +1,31 @@
+{
+  "run_id": "035c76ec-696e-44a9-9174-0a1f953ea2ce",
+  "engine": "SIA-v6.2.0",
+  "artifacts": {
+    "suite_summary": {
+      "path": "./benchmark_output/suite_summary.csv",
+      "sha256": "d5d19d04f716a58f59935be511945e7cae14a8bd5d018b681b3605e8aa650f8e"
+    },
+    "attack_matrix": {
+      "path": "./benchmark_output/attack_matrix.csv",
+      "sha256": "6c5b9e2a3fb366be156c60d3ced75239366216ee7a28d77b05183aec4f919034"
+    },
+    "domain_transfer": {
+      "path": "./benchmark_output/domain_transfer.csv",
+      "sha256": "f937138038a0d05fd6125b773093c686fb88e9267905a53062e86dcd83caf5c6"
+    },
+    "repair_operators": {
+      "path": "./benchmark_output/repair_operators.csv",
+      "sha256": "6e909de2ea23c5c4b834e38fe1d8d9f3b027aad74f9ae32802ff178f8170a426"
+    },
+    "proof_chain_audit": {
+      "path": "./benchmark_output/proof_chain_audit.csv",
+      "sha256": "44c80dd58d962210b8fefeec7a9c339f007bd5ad7cbae9a102fc6ba147810697"
+    },
+    "benchmark_report": {
+      "path": "./benchmark_output/benchmark_report.md",
+      "sha256": "5078f685c4fb616afd1b45e32c0e7172bc0d2cd722978762633697d5546b2d1c"
+    }
+  },
+  "certification_status": "CERTIFIED WITH DEGRADATION"
+}
