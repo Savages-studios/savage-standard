@@ -1,0 +1,20 @@
+{
+ "schema": "savage/key-registry/1",
+ "registry_version": 1,
+ "keys": [
+  {
+   "key_id": "estate-demo-2026-11-10",
+   "algorithm": "RSASSA-PKCS1-v1_5/SHA-256",
+   "usage": "demo",
+   "status": "active",
+   "public": {
+    "n": "rri9yUkUg5VWRyogh3fo2zg1oqtHfIOUh0OPO-FYCCrhUfw34bQMVKIm2YAcGQB106cA9P3uATres8IHvQ0hnR_kTDX3nKzz8MkUTrKoYKDl7K4i8IRUsJGIWSuspcqxB_gLBlHkWsm437Ktq25Ln_EVzJd_sLLkIo5qa9G1InjJ_Pntc9n45W0tLMmcEsgwLfJNkzznjNSo4v3jBu_OeirVN4Nb_A806xek05gQ67Rfh37BwhWaZJFhUbZsVcaoDxyXmOlAghDiFk-AXNGrJiLF2BZkhGaSbIQlGvJn8OfDGq55phzVyI2wwhnUBfSyuq0GyXZ6NInd8ch_sFdLUw",
+    "e": 65537
+   },
+   "bits": 2048,
+   "not_before": "2026-11-10T00:00:00Z",
+   "not_after": null,
+   "note": "THROWAWAY DEMO KEY. Generated 2026-11-10 solely to prove the estate key-custody mechanism end to end; its private half was destroyed immediately after signing fixtures/signed-envelope-demo.json. It attests NOTHING about any issuer. The real estate signing key is minted by the operator (savage-verify keygen) and only its public entry belongs here."
+  }
+ ]
+}
