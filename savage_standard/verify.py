@@ -98,6 +98,14 @@ def verify(obj, *, pair=None, artifact_dir=None, artifact_file=None,
             inner = dialects.DialectResult(dialect="envelope", legs=[])
             return _verdict(inner, legs)
         native = obj["native"]
+        if dialects.is_atlas_call_envelope(obj):
+            # atlas-call native (fix #82): the dialect legs need the
+            # envelope itself (gate verdict, artifact pointer), so the
+            # adapter runs here rather than through native detection.
+            # The envelope-layer legs (digest, native binding, chain
+            # field, signatures) have already passed above.
+            return _verdict(dialects.verify_atlas_call(native, envelope=obj),
+                            legs)
         inner = verify(native, pair=pair, artifact_dir=artifact_dir,
                        artifact_file=artifact_file, bound_laws=bound_laws,
                        score_claim=score_claim)

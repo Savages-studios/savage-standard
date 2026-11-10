@@ -1,0 +1,342 @@
+{
+  "success": {
+    "schema": "savage/receipt-envelope/1",
+    "envelope_version": 1,
+    "claim": {
+      "id": "atlas-call:3beac0fd82a1f464:2026-11-10T20:39:31Z",
+      "kind": "api-call",
+      "statement": "Atlas call for need: get the weather forecast for a city"
+    },
+    "issuer": {
+      "line": "Savage API Atlas",
+      "system": "savage-api-atlas",
+      "dialect": "atlas-call"
+    },
+    "subject": {
+      "native_schema": "savage/atlas-call/1",
+      "native_digest": "a3cae38977d79af090aadb07ba13b2e028c05095b24517b746cb6b99ec6a03f1",
+      "artifact_hashes": [
+        {
+          "kind": "response-body",
+          "sha256": "aa6d80954fc431713f73c6da65123df91dba1afa47e5de6ec01546ea9d82f021"
+        }
+      ]
+    },
+    "evidence": [
+      {
+        "kind": "probe-log",
+        "path": "data/probe-log.jsonl",
+        "role": "keyless/reachability evidence for route selection"
+      }
+    ],
+    "gate": {
+      "name": "atlas-live-call",
+      "verdict": "success"
+    },
+    "recorded_at": "2026-11-10T20:39:31Z",
+    "timestamp_trust": "producer-reported; NOT a trusted timestamp",
+    "chain": {
+      "prev_digest": null
+    },
+    "native": {
+      "receipt": "savage/atlas-call/1",
+      "need": "get the weather forecast for a city",
+      "status": "success",
+      "route_chosen": {
+        "name": "World Time & Weather",
+        "url": "https://worldtimeweather.com/api.html",
+        "category": "Weather",
+        "auth_claim": "none",
+        "https_claim": true,
+        "score": 32.14,
+        "coverage": 2,
+        "matched_terms": [
+          "city",
+          "weather"
+        ],
+        "anchor_terms": [
+          "weather"
+        ],
+        "keyless_basis": "probe receipt: answered a keyless GET alive",
+        "endpoint_basis": "probe receipt: URL answered a keyless GET alive"
+      },
+      "attempts": [
+        {
+          "route": {
+            "name": "World Time & Weather",
+            "url": "https://worldtimeweather.com/api.html",
+            "category": "Weather",
+            "auth_claim": "none",
+            "https_claim": true,
+            "score": 32.14,
+            "coverage": 2,
+            "matched_terms": [
+              "city",
+              "weather"
+            ],
+            "anchor_terms": [
+              "weather"
+            ],
+            "keyless_basis": "probe receipt: answered a keyless GET alive",
+            "endpoint_basis": "probe receipt: URL answered a keyless GET alive"
+          },
+          "http_status": 200,
+          "latency_ms": 1446,
+          "error": null,
+          "ok": true
+        }
+      ],
+      "failover_chain": [],
+      "result": {
+        "http_status": 200,
+        "latency_ms": 1446,
+        "body_sha256": "aa6d80954fc431713f73c6da65123df91dba1afa47e5de6ec01546ea9d82f021",
+        "body_bytes": 12586,
+        "body_truncated": false,
+        "content_type": "text/html",
+        "final_url": "https://worldtimeweather.com/api.html",
+        "redirect_chain": []
+      },
+      "recorded_at": "2026-11-10T20:39:31Z"
+    },
+    "boundaries": [
+      "This envelope wraps a native receipt verbatim; it adds identification, evidence pointers, and a hash chain — not trust.",
+      "recorded_at is producer-reported and is NOT a trusted timestamp.",
+      "The envelope is hash-bound, not signed. Estate key custody for envelope-level signatures is still owed.",
+      "A VERIFIED verdict means every recomputable check in the native dialect passed; legs that cannot be recomputed are reported UNVERIFIABLE, never silently passed."
+    ],
+    "envelope_digest": "f10343578208da925b8946d91a761bd55be7872981a18c0a2b428f59f93b4590"
+  },
+  "refused": {
+    "schema": "savage/receipt-envelope/1",
+    "envelope_version": 1,
+    "claim": {
+      "id": "atlas-call:91d0a2048db12c8b:2026-11-10T20:39:48Z",
+      "kind": "api-call",
+      "statement": "Atlas call for need: movie and TV show information and ratings"
+    },
+    "issuer": {
+      "line": "Savage API Atlas",
+      "system": "savage-api-atlas",
+      "dialect": "atlas-call"
+    },
+    "subject": {
+      "native_schema": "savage/atlas-call/1",
+      "native_digest": "47fe3e803228cad69847ce8041bd7ec9c70d02f2f009076b58af8250b35f229a",
+      "artifact_hashes": []
+    },
+    "evidence": [],
+    "gate": {
+      "name": "atlas-live-call",
+      "verdict": "refused"
+    },
+    "recorded_at": "2026-11-10T20:39:48Z",
+    "timestamp_trust": "producer-reported; NOT a trusted timestamp",
+    "chain": {
+      "prev_digest": "0ef1544d72a5bdd2e496200f2e13edf405ec448641cda0cad0abbe5d54cec537"
+    },
+    "native": {
+      "receipt": "savage/atlas-call/1",
+      "need": "movie and TV show information and ratings",
+      "status": "refused",
+      "reason": "no callable route: nothing ranked for this need is semantically on-need AND keyless-established AND probe-proven as a live endpoint; unprobed routes are refused, never guessed at",
+      "ranked_top": [
+        {
+          "name": "OpenSubtitles",
+          "url": "https://www.opensubtitles.com/",
+          "category": "Video",
+          "auth_claim": "apiKey",
+          "https_claim": true,
+          "score": 35.7054,
+          "coverage": 3,
+          "matched_terms": [
+            "movie",
+            "show",
+            "tv"
+          ],
+          "anchor_terms": [],
+          "keyless_basis": null,
+          "endpoint_basis": null
+        },
+        {
+          "name": "TasteDive",
+          "url": "https://tastedive.com/read/api",
+          "category": "Music",
+          "auth_claim": "apiKey",
+          "https_claim": true,
+          "score": 34.9257,
+          "coverage": 3,
+          "matched_terms": [
+            "movie",
+            "show",
+            "tv"
+          ],
+          "anchor_terms": [],
+          "keyless_basis": null,
+          "endpoint_basis": null
+        },
+        {
+          "name": "TasteDive",
+          "url": "https://tastedive.com/read/api",
+          "category": "Entertainment",
+          "auth_claim": "apiKey",
+          "https_claim": true,
+          "score": 33.4641,
+          "coverage": 3,
+          "matched_terms": [
+            "movie",
+            "show",
+            "tv"
+          ],
+          "anchor_terms": [],
+          "keyless_basis": null,
+          "endpoint_basis": null
+        },
+        {
+          "name": "Trakt API",
+          "url": "https://api.apis.guru/v2/specs/trakt.tv/1.0.0/openapi.json",
+          "category": "APIs.guru",
+          "auth_claim": "unknown",
+          "https_claim": true,
+          "score": 16.889,
+          "coverage": 3,
+          "matched_terms": [
+            "movie",
+            "show",
+            "tv"
+          ],
+          "anchor_terms": [],
+          "keyless_basis": null,
+          "endpoint_basis": null
+        },
+        {
+          "name": "Trakt",
+          "url": "https://trakt.docs.apiary.io/",
+          "category": "Video",
+          "auth_claim": "apiKey",
+          "https_claim": true,
+          "score": 31.1637,
+          "coverage": 2,
+          "matched_terms": [
+            "movie",
+            "tv"
+          ],
+          "anchor_terms": [],
+          "keyless_basis": null,
+          "endpoint_basis": null
+        }
+      ],
+      "attempts": [],
+      "failover_chain": [],
+      "result": {
+        "http_status": null,
+        "latency_ms": null,
+        "body_sha256": null,
+        "body_bytes": null,
+        "content_type": null,
+        "final_url": null
+      },
+      "recorded_at": "2026-11-10T20:39:48Z"
+    },
+    "boundaries": [
+      "This envelope wraps a native receipt verbatim; it adds identification, evidence pointers, and a hash chain — not trust.",
+      "recorded_at is producer-reported and is NOT a trusted timestamp.",
+      "The envelope is hash-bound, not signed. Estate key custody for envelope-level signatures is still owed.",
+      "A VERIFIED verdict means every recomputable check in the native dialect passed; legs that cannot be recomputed are reported UNVERIFIABLE, never silently passed."
+    ],
+    "envelope_digest": "5d99d07c023624ff3c42d0079ba4b91ea4c755b8420df229bf06cc4f4967d744"
+  },
+  "failed": {
+    "schema": "savage/receipt-envelope/1",
+    "envelope_version": 1,
+    "claim": {
+      "id": "atlas-call:7eb4f02b88798831:2026-11-10T20:39:35Z",
+      "kind": "api-call",
+      "statement": "Atlas call for need: find the country and city for an IP address"
+    },
+    "issuer": {
+      "line": "Savage API Atlas",
+      "system": "savage-api-atlas",
+      "dialect": "atlas-call"
+    },
+    "subject": {
+      "native_schema": "savage/atlas-call/1",
+      "native_digest": "3d5e1e16b80fde0dc710065014c6a90ca95885c738c705981f38da67304c2bee",
+      "artifact_hashes": []
+    },
+    "evidence": [
+      {
+        "kind": "probe-log",
+        "path": "data/probe-log.jsonl",
+        "role": "keyless/reachability evidence for route selection"
+      }
+    ],
+    "gate": {
+      "name": "atlas-live-call",
+      "verdict": "failed"
+    },
+    "recorded_at": "2026-11-10T20:39:35Z",
+    "timestamp_trust": "producer-reported; NOT a trusted timestamp",
+    "chain": {
+      "prev_digest": "e1aea3eb202b520bdf6ff6271982d80035d98500c18a109b1bebb02ddff763af"
+    },
+    "native": {
+      "receipt": "savage/atlas-call/1",
+      "need": "find the country and city for an IP address",
+      "status": "failed",
+      "route_chosen": null,
+      "attempts": [
+        {
+          "route": {
+            "name": "ip-fast.com",
+            "url": "https://ip-fast.com/docs/",
+            "category": "Development",
+            "auth_claim": "none",
+            "https_claim": true,
+            "score": 58.7898,
+            "coverage": 4,
+            "matched_terms": [
+              "address",
+              "city",
+              "country",
+              "ip"
+            ],
+            "anchor_terms": [
+              "ip"
+            ],
+            "keyless_basis": "probe receipt: answered a keyless GET alive",
+            "endpoint_basis": "probe receipt: URL answered a keyless GET alive"
+          },
+          "http_status": 401,
+          "latency_ms": 1495,
+          "error": null,
+          "ok": false
+        }
+      ],
+      "failover_chain": [
+        {
+          "route": "ip-fast.com",
+          "url": "https://ip-fast.com/docs/",
+          "failure": "http 401"
+        }
+      ],
+      "result": {
+        "http_status": 401,
+        "latency_ms": null,
+        "body_sha256": null,
+        "body_bytes": null,
+        "content_type": null,
+        "final_url": null
+      },
+      "recorded_at": "2026-11-10T20:39:35Z"
+    },
+    "boundaries": [
+      "This envelope wraps a native receipt verbatim; it adds identification, evidence pointers, and a hash chain — not trust.",
+      "recorded_at is producer-reported and is NOT a trusted timestamp.",
+      "The envelope is hash-bound, not signed. Estate key custody for envelope-level signatures is still owed.",
+      "A VERIFIED verdict means every recomputable check in the native dialect passed; legs that cannot be recomputed are reported UNVERIFIABLE, never silently passed."
+    ],
+    "envelope_digest": "b436d810fd89c9cb05971ec80ca095b3f9346a0bcbbf3e5284faa5d817d0227e"
+  },
+  "provenance": "Copied verbatim from savage-api-atlas benchmarks/needs-benchmark.json (after.rows[i].receipt) at atlas main d9c24a21d8f7, 2026-11-10. These are real landed benchmark receipts, produced by the pre-convergence call.py (see vendor/atlas_call_v1.py)."
+}
