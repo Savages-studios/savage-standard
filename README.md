@@ -69,6 +69,30 @@ savage-relay and savage-api-atlas were created the same way for
 cross-estate roles. Python 3 standard library only — zero third-party
 dependencies — matching the sia-v6-core / Relay house style.
 
+## Install
+
+The package installs from a checkout of this repo (Python ≥ 3.10,
+standard library only — the installed distribution declares zero
+third-party dependencies):
+
+```sh
+pip install .            # or: pip install /path/to/savage-standard
+savage-verify RECEIPT.json [--pair PAIR.json] [--artifacts DIR] [--file ARTIFACT]
+```
+
+That puts the `savage-verify` console script on PATH and the
+`savage_standard` package (including its shipped `key_registry.json`)
+in site-packages. The source distribution (sdist) additionally carries
+the full evidence tree — `fixtures/`, `tests/`, `vendor/` — so the
+suite below reproduces from an extracted sdist alone; the wheel is
+runtime-only and never installs tests or fixtures. The package is not
+published to PyPI or any other index, and no estate consumer imports
+it yet (see GROUND_TRUTH.md).
+
+For development, `pip install -e .` works the same way against the
+live tree. Without installing, every command below also runs from a
+checkout via `python3 -m savage_standard.cli`.
+
 ## Use
 
 ```sh
@@ -78,7 +102,7 @@ python3 -m savage_standard.cli claims
 python3 -m savage_standard.cli recompute PER_INSTANCE_STATS.json --metric exact_match --split valid ... (see --help)  # mint an external-benchmark recompute receipt
 python3 -m savage_standard.cli keygen --key-id ID --out ~/outside-any-repo/estate.key.json   # operator only: prints the PUBLIC registry entry; the private key never enters a repo
 python3 -m savage_standard.cli sign ENVELOPE.json --key-file ~/outside-any-repo/estate.key.json -o SIGNED.json
-python3 -m unittest discover -s tests   # 62 tests: genuine + tamper per dialect, incl. the HELM recompute dialect, envelope signatures, and the signed delivery-pair bridge
+python3 -m unittest discover -s tests   # 74 tests: genuine + tamper per dialect, incl. the HELM recompute dialect, envelope signatures, the signed delivery-pair bridge, and the atlas-call dialect
 ```
 
 Exit codes: 0 = VERIFIED / VERIFIED-STRUCTURAL, 1 = REJECTED,

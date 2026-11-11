@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "savage-standard"
-version = "0.4.0"
+version = "0.5.0"
 description = "SIA-E2 One Promotion Standard: SRE-1 receipt envelope + universal verifier for every Savage receipt dialect"
 requires-python = ">=3.10"
 dependencies = []
