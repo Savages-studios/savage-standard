@@ -46,9 +46,31 @@ yet, so no production envelope is signed today.
 | `savage_standard/cli.py` — `savage-verify` CLI (verify / wrap / recompute / claims / keygen / sign; `--keys` registry override on verify) | VERIFIED | Smoke-run in the PR body; exit codes 0/1/2 by verdict. `tests/test_signing.py::TestDemoAndCustody::test_cli_keygen_sign_verify` drives keygen→sign→verify end to end. |
 | `savage_standard/claims.py` — claims-gate inventory | VERIFIED as an enumeration | Rows cite their sources (site repo main `4efd6486`, marketplace `catalog.json`, Stripe registry, fix-program results). The BEFORE number is definitional — the definition is printed in the module docstring so it can be argued with. |
 | `fixtures/` — real artifacts from the fix program (and, for SIA-E1, one real external artifact) | VERIFIED | `fixtures/PROVENANCE.md` names each artifact's origin. |
+| `pyproject.toml` + `MANIFEST.in` — packaging: setuptools backend, `savage-verify` console script, `key_registry.json` package-data; the sdist grafts the full evidence tree (`fixtures/`, `tests/`, `vendor/`) plus this file | VERIFIED (fix #85, 2026-11-10) | From a clean venv: `pip install .` in a checkout succeeds; `savage-verify fixtures/signed-envelope-demo.json` from an unrelated cwd prints the same verdict + legs as the from-source run (byte-identical output, measured); the suite passes 74/74 against the INSTALLED package and 74/74 from an extracted sdist. BEFORE fix #85 the sdist shipped the test modules without any of their data (extracted-sdist suite: 56 tests ran, 52 FileNotFoundError errors). The wheel remains runtime-only; the package is installable but NOT published to any index, and no consumer imports it yet (see "What is NOT true"). |
 
 ## Metrics (Evolution Rule v2)
 
+- Fix #85 packaging (2026-11-10; BEFORE measured on the pristine tree
+  @ `b12cb607`, version 0.4.0): the wheel path already worked — a clean
+  venv `pip install .` succeeded, the `savage-verify` console script
+  verified both committed fixtures with output byte-identical to the
+  from-source run, a keygen→sign→verify round-trip under a throwaway
+  key returned VERIFIED with the signature leg passing, and the suite
+  passed 74/74 against the installed package. What was broken was the
+  SOURCE distribution: the sdist shipped the four test modules but
+  none of their data — no `fixtures/` tree, no
+  `tests/fixtures/atlas-call-envelopes.json`, no
+  `vendor/atlas_call_v1.py`, not even this file — so the published
+  source artifact could not reproduce the repo's own verification:
+  extracted-sdist suite **"Ran 56 tests … FAILED (errors=52)"**, every
+  error a FileNotFoundError for a missing fixture. AFTER (version
+  0.5.0): `MANIFEST.in` grafts the evidence tree into the sdist;
+  extracted-sdist suite **74/74 OK**; clean-venv install of the fixed
+  tree reproduces the byte-identical fixture verdicts and the 74/74
+  against-installed suite; from-source suite unchanged at 74/74. No
+  module, digest, or verdict changed — packaging metadata, this file,
+  and the README only. Build backend unchanged (setuptools); runtime
+  dependencies still `[]`.
 - Fix #82 Atlas envelope convergence (2026-11-10; BEFORE measured on
   the pristine trees — savage-standard @ `f551ec40`, savage-api-atlas @
   `d9c24a21`): atlas-call dialect legs executed by this verifier on a
@@ -67,7 +89,9 @@ yet, so no production envelope is signed today.
   JCS/digest/wrap implementations are deleted — one envelope
   implementation. What convergence does NOT yet mean: savage-standard
   is not published as an installable package anywhere, so the vendored
-  copy is pinned-and-proven rather than imported; and no production
+  copy is pinned-and-proven rather than imported (packaging state
+  since updated by fix #85 — see its Metrics entry above; consumers
+  still do not import it); and no production
   Atlas envelope is signed (no real estate key exists — see "What is
   NOT true").
 - Fix #81 delivery-pair bridge (2026-11-10; BEFORE measured on the
@@ -127,6 +151,16 @@ yet, so no production envelope is signed today.
 
 ## What is NOT true
 
+- **The package is installable but not published, and consumers still
+  do not import it (fix #85).** As of 0.5.0 the package installs
+  cleanly from a checkout or sdist of this repo and its sdist can
+  reproduce the full suite — but it is on no package index (PyPI or
+  otherwise), savage-api-atlas still vendors its pinned byte-identical
+  copies of `canonical.py`/`envelope.py` rather than importing, and
+  the marketplace's issuance path still resolves the verifier by path
+  rather than importing the installed package. Import-based
+  convergence in consumers is a separate step, gated on each
+  consumer's CI being able to fetch the package.
 - **SIA-E1 covers exactly ONE external claim, not external benchmarks
   in general.** The adapter speaks one published format (HELM classic
   per-instance statistics) and has been exercised on one claim (BoolQ /

@@ -6,4 +6,4 @@ Savage-original code, written clean-room from each dialect's own source.
 """
 __all__ = ["canonical", "envelope", "verify", "dialects", "claims",
            "rsa", "signing"]
-__version__ = "0.4.0"
+__version__ = "0.5.0"

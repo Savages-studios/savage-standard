@@ -1,0 +1,9 @@
+# sdist completeness (fix #85): the source distribution ships the full
+# evidence tree so the test suite reproduces from the sdist alone.
+# The wheel stays runtime-only (the savage_standard package plus its
+# key_registry.json package-data) — tests and fixtures are never
+# installed into site-packages.
+graft fixtures
+graft tests
+graft vendor
+include GROUND_TRUTH.md BEFORE-MEASUREMENT.md LANDING.md
