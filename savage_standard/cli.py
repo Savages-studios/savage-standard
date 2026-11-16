@@ -41,6 +41,20 @@ Usage:
   savage-verify estate --org ORG --fetch [-o OUT] [--json]
                         (collect the snapshot live from the GitHub API;
                         token read from $GITHUB_TOKEN, exit 2 when unset)
+  savage-verify doors --snapshot FILE [-o OUT] [--json]
+                        (DATA-E1: build the door-registry artifact
+                        (savage.door_registry.v1) from a snapshot
+                        composed of landed sources; exit 0 = no
+                        failures, 1 = artifact produced WITH named
+                        failures (printed to stderr), 2 = usage/input
+                        error — a snapshot registering zero doors
+                        never registers silently, and no section is
+                        registered without a declared source)
+  savage-verify doors --check ARTIFACT
+                        (verify a sealed door registry: digest
+                        recomputed and every record re-derived from
+                        the embedded snapshot; exit 0 iff it verifies,
+                        else 1 with the mismatches printed)
   savage-verify keygen --key-id ID --out PRIVATE.json [--bits 3072]
                         (generate an estate signing key: the PRIVATE key
                         is written mode-0600 to --out — choose a path
@@ -214,12 +228,83 @@ def _gate_main(argv) -> int:
     return 0 if report["verdict"] == "PASS" else 1
 
 
+def _doors_main(argv) -> int:
+    from . import doors as doors_mod
+    p = argparse.ArgumentParser(prog="savage-verify doors")
+    p.add_argument("--snapshot",
+                   help="doors snapshot JSON file to register")
+    p.add_argument("--check",
+                   help="sealed savage.door_registry.v1 artifact "
+                        "to verify")
+    p.add_argument("-o", "--out")
+    p.add_argument("--json", action="store_true")
+    a = p.parse_args(argv)
+    modes = sum(bool(x) for x in (a.snapshot, a.check))
+    if modes != 1:
+        p.error("exactly one of --snapshot or --check is required")
+    if a.check:
+        try:
+            with open(a.check, encoding="utf-8") as fh:
+                artifact = json.load(fh)
+        except (OSError, ValueError) as e:
+            print(f"doors --check refused: {e}", file=sys.stderr)
+            return 2
+        if not isinstance(artifact, dict):
+            print("doors --check refused: artifact is not a JSON object",
+                  file=sys.stderr)
+            return 2
+        ok, mismatches = doors_mod.verify_registry(artifact)
+        if ok:
+            s = artifact.get("summary") or {}
+            print(f"door registry VERIFIED: {artifact.get('org')} @ "
+                  f"{artifact.get('taken_at')}, "
+                  f"{s.get('doors_registered')} doors registered, "
+                  f"{s.get('gated')} gated")
+            return 0
+        for m in mismatches:
+            print(f"mismatch: {m}", file=sys.stderr)
+        print("door registry REJECTED", file=sys.stderr)
+        return 1
+    try:
+        with open(a.snapshot, encoding="utf-8") as fh:
+            snapshot = json.load(fh)
+    except (OSError, ValueError) as e:
+        print(f"doors refused: {e}", file=sys.stderr)
+        return 2
+    try:
+        artifact = doors_mod.build_registry(snapshot)
+    except ValueError as e:
+        print(f"doors refused: {e}", file=sys.stderr)
+        return 2
+    text = json.dumps(artifact, indent=1) + "\n"
+    if a.out:
+        with open(a.out, "w", encoding="utf-8") as fh:
+            fh.write(text)
+        s = artifact["summary"]
+        print(f"door registry: {artifact['org']} @ "
+              f"{artifact['taken_at']}: {s['doors_registered']} doors "
+              f"({s['repos']} repos, {s['commercial_doors']} commercial, "
+              f"{s['commercial_active']} active), {s['gated']} gated, "
+              f"{len(artifact['failures'])} failures")
+        print(f"written to {a.out}")
+        if a.json:
+            print(text, end="")
+    else:
+        print(text, end="")
+    for failure in artifact["failures"]:
+        print(f"failure: {failure['door']}: {failure['reason']}",
+              file=sys.stderr)
+    return 0 if not artifact["failures"] else 1
+
+
 def main(argv=None) -> int:
     argv = list(sys.argv[1:] if argv is None else argv)
     if argv and argv[0] == "gate":
         return _gate_main(argv[1:])
     if argv and argv[0] == "estate":
         return _estate_main(argv[1:])
+    if argv and argv[0] == "doors":
+        return _doors_main(argv[1:])
     if argv and argv[0] == "claims":
         for row in INVENTORY:
             print(f"{row['id']:<28} {row['class']:<16} gated={row['gated']!s:<5} {row['claim']}")

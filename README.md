@@ -109,6 +109,29 @@ This repo is the one standard they converge on:
    `.github/workflows/claim-gate.yml`. What the gate does NOT do:
    it checks labels and their agreement with the evidence above;
    it does not re-measure any figure or re-run any suite.
+8. **DATA-E1 — the door registry** (`savage_standard/doors.py`, CLI
+   subcommand `doors`) — the estate's named assets under one sealed,
+   re-derivable registry. From a snapshot composed of landed sources
+   (each section declaring its source — repo, path, as-of; there are
+   no unsourced doors) it derives one record per door: org
+   repositories, commercial payment doors, and gated entries for
+   asset classes that cannot be enumerated from landed sources
+   today (the pending transfer's payload; live runtime state),
+   carried labeled with their reason — present, never fabricated
+   into doors. The artifact (`savage.door_registry.v1`) embeds the
+   snapshot verbatim and is sealed with the same JCS SHA-256 digest
+   as the attestation; `savage-verify doors --check` recomputes the
+   digest AND re-derives every record, so a tampered locator or an
+   erased failure is caught even under an honestly recomputed
+   digest. A snapshot registering zero doors is refused, and a
+   commercial door its source marks inactive is registered WITH a
+   named failure. Before this build, named assets under a sealed,
+   re-derivable registry numbered **0**; the first live registry
+   (2026-11-16) registers **121 doors** (45 repos + 76 commercial,
+   all 76 active in their source) with 2 gated classes named.
+   What the registry does NOT do: it carries its sources' facts at
+   their as-of dates — it does not re-observe Stripe, GitHub, or
+   any live system; no fetcher ships.
 
 ## Why a new tiny repo
 

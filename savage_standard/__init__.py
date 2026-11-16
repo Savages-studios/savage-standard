@@ -5,5 +5,5 @@ receipt dialect minted in the Savage estate. Python standard library only.
 Savage-original code, written clean-room from each dialect's own source.
 """
 __all__ = ["canonical", "envelope", "verify", "dialects", "claims",
-           "rsa", "signing", "estate", "estate_fetch"]
-__version__ = "0.6.0"
+           "rsa", "signing", "estate", "estate_fetch", "gate", "doors"]
+__version__ = "0.8.0"

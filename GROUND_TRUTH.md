@@ -66,13 +66,34 @@ the component table, Metrics, and "What is NOT true".
 | `savage_standard/estate_fetch.py` — PROOF-E1 snapshot fetcher for token holders: stdlib `urllib` against api.github.com (org repos paginated; per repo default-branch head, GROUND_TRUTH.md via contents API with 404 → null, up to 5 latest default-branch workflow runs) | BUILT; network path NOT exercised by the suite | The suite proves only the CLI's token-missing refusal (exit 2 with `$GITHUB_TOKEN` unset) and never calls the network; the live org-wide fetch is the operator's run (Knights, with the estate credential route). |
 | `savage_standard/gate.py` — the estate claim gate: scans a materialized repo tree's public documents (root Markdown + `docs/` tree; apparatus `ARTIFACT_INDEX.md` / `GROUND_TRUTH.md` excluded) for claims under the Savage-AI-style linter's rule set (claim patterns, claim-state vocabulary, label forms, qualification forms, exemptions — re-implemented clean-room from that linter's documented behavior; no import, no runtime dependency), extracts each claim's stated state, and refutes it under four documented mechanical contradiction rules (C1 verified vs attestation GT DRIFTED/MISSING; C2 verified vs attestation CI FAILING; C3 verified vs a tree with no root GROUND_TRUTH.md, only when no attestation record is in play; C4 LIVE vs attestation CI FAILING or GT MISSING), plus the GT-budget rule (DRIFTED/MISSING count for the record in play vs `--gt-budget`, default 0). A supplied attestation is verified via `estate.verify_artifact` before any verdict is taken from it; an unverifying artifact or a missing record is a named failure, never a silent pass | VERIFIED by planted controls | `tests/test_gate.py` (17 tests) incl. fixture trees under `tests/fixtures/gate/`: the BAD fixture (one unlabeled throughput claim + one verified-labeled claim under a DRIFTED attestation) FAILs naming both the UNLABELED and the CONTRADICTED failure; the CLEAN fixture (labeled claims, CURRENT/PASSING attestation) PASSes; C2/C3/C4 each pinned by a dedicated control; a re-digested tampered attestation is an ATTESTATION failure and its verdicts are never used; budget 0 fails / budget 1 passes the same DRIFTED record against clean docs. |
 | `.github/workflows/claim-gate.yml` — reusable GitHub Actions workflow (`workflow_call`, plus push/PR/dispatch on this repo) running `savage-verify gate` over the checked-out tree and the full suite in a second job | BUILT; NOT yet run in GitHub Actions | The workflow file is new in this landing — this repo carried no `.github/workflows/` at all before it — so no Actions run of it exists yet; its steps mirror the exact local commands proven in the PR body. |
-| `savage_standard/cli.py` — `savage-verify` CLI (verify / wrap / recompute / claims / keygen / sign / estate / gate; `--keys` registry override on verify) | VERIFIED | Smoke-run in the PR body; exit codes 0/1/2 by verdict. `tests/test_signing.py::TestDemoAndCustody::test_cli_keygen_sign_verify` drives keygen→sign→verify end to end. The `estate` subcommand's exits are pinned by `tests/test_estate.py::TestCli`: build 0 (clean) / 1 (attested WITH named failures, printed to stderr) / 2 (usage/input error, incl. empty repos list and unset `$GITHUB_TOKEN`); `--check` 0 iff the artifact verifies, else 1 with mismatches printed. The `gate` subcommand's exits are pinned by `tests/test_gate.py::TestCli`: 1 on the BAD fixture tree, 0 on the CLEAN fixture tree, 2 on a missing tree. |
+| `savage_standard/doors.py` — DATA-E1 door registry: derives one record per named asset ("door") from a snapshot composed of landed sources (org repos; commercial payment doors), each section carrying a declared source ({repo, path, as_of}) — a section with entries but no declared source raises; gated entries (asset classes not enumerable from landed sources) carried verbatim with locator null and their reason; the sealed `savage.door_registry.v1` artifact (snapshot embedded verbatim, SHA-256 over the JCS canonical form) and `verify_registry` (digest recompute + full re-derivation compare, mismatches naming door + field). A zero-door snapshot is refused; an inactive commercial door registers WITH a named failure; duplicate (kind, name) names a failure on the later record | VERIFIED incl. a live registry | `tests/test_doors.py` (13 tests): build counts/kinds, verify round-trip, inactive-door and duplicate-name named failures, zero-door and unsourced-section refusals, malformed-entry refusals, re-digested tamper controls (flipped locator, erased failure, dropped gated record all REJECTED), stale-digest and wrong-kind rejection, CLI build + check exits. First live registry (2026-11-16): 121 doors, digest `8dbc4385…`, `--check` VERIFIED — see Metrics. |
+| `savage_standard/cli.py` — `savage-verify` CLI (verify / wrap / recompute / claims / keygen / sign / estate / gate / doors; `--keys` registry override on verify) | VERIFIED | Smoke-run in the PR body; exit codes 0/1/2 by verdict. `tests/test_signing.py::TestDemoAndCustody::test_cli_keygen_sign_verify` drives keygen→sign→verify end to end. The `estate` subcommand's exits are pinned by `tests/test_estate.py::TestCli`: build 0 (clean) / 1 (attested WITH named failures, printed to stderr) / 2 (usage/input error, incl. empty repos list and unset `$GITHUB_TOKEN`); `--check` 0 iff the artifact verifies, else 1 with mismatches printed. The `gate` subcommand's exits are pinned by `tests/test_gate.py::TestCli`: 1 on the BAD fixture tree, 0 on the CLEAN fixture tree, 2 on a missing tree. The `doors` subcommand's exits are pinned by `tests/test_doors.py::CliTest`: build 0 (clean) with the artifact written, `--check` 0 on the sealed artifact, 1 on a re-digested tampered artifact. |
 | `savage_standard/claims.py` — claims-gate inventory | VERIFIED as an enumeration | Rows cite their sources (site repo main `4efd6486`, marketplace `catalog.json`, Stripe registry, fix-program results). The BEFORE number is definitional — the definition is printed in the module docstring so it can be argued with. |
 | `fixtures/` — real artifacts from the fix program (and, for SIA-E1, one real external artifact) | VERIFIED | `fixtures/PROVENANCE.md` names each artifact's origin. |
 | `pyproject.toml` + `MANIFEST.in` — packaging: setuptools backend, `savage-verify` console script, `key_registry.json` package-data; the sdist grafts the full evidence tree (`fixtures/`, `tests/`, `vendor/`) plus this file | VERIFIED (fix #85, 2026-11-10) | From a clean venv: `pip install .` in a checkout succeeds; `savage-verify fixtures/signed-envelope-demo.json` from an unrelated cwd prints the same verdict + legs as the from-source run (byte-identical output, measured); the suite passes 74/74 against the INSTALLED package and 74/74 from an extracted sdist. BEFORE fix #85 the sdist shipped the test modules without any of their data (extracted-sdist suite: 56 tests ran, 52 FileNotFoundError errors). The wheel remains runtime-only; the package is installable but NOT published to any index, and no consumer imports it yet (see "What is NOT true"). |
 
 ## Metrics (Evolution Rule v2)
 
+- DATA-E1 door registry (2026-11-15; BEFORE measured on the pristine
+  tree @ `4c0ac3ad`, version 0.7.0): named assets under a sealed,
+  re-derivable registry = **0** — the org's repos were enumerable
+  only inside the attestation's snapshot, the payment doors only in
+  savage-marketplace's own register files, and no artifact anywhere
+  sealed the estate's doors into one verifiable document. AFTER
+  (version 0.8.0): **121 doors registered** in the first live
+  registry (built 2026-11-16T04:24:54Z from landed sources: the
+  shift-3 estate snapshot's 45 repos @ its 2026-11-16T04:05:18Z
+  collection + savage-marketplace `stripe-links.json`'s 76
+  commercial doors, as of 2026-11-08, all 76 active in their
+  source), 2 gated classes named (the pending transfer's payload;
+  savage-relay's live seat state), 0 failures; artifact digest
+  `8dbc43852204f9cdcaef5fde586aea958aaaf41d3d424ad8480700aac95ae7b0`,
+  `savage-verify doors --check` VERIFIED. Tamper controls in
+  `tests/test_doors.py` (13 tests): flipped locator, erased failure,
+  and dropped gated record — each honestly re-digested — all
+  REJECTED by re-derivation naming door + field; a stale digest and
+  a wrong kind are rejected; a zero-door snapshot and an unsourced
+  section are refused at build. Suite 113 → 126, zero regressions.
 - Claim gate (2026-11-15; BEFORE measured on the pristine tree @
   `e78e75e2`, version 0.6.0): claim gates that fail CI on a
   contradicted or unlabeled claim = **0** — verified by reading the
@@ -261,6 +282,23 @@ the component table, Metrics, and "What is NOT true".
   and were not gated). No other estate repo's documents have been
   gated yet; adoption is one `--attestation` run per repo, or the
   reusable workflow, per repo.
+- **The door registry does not cover the whole door universe
+  (DATA-E1).** It registers only doors enumerable from landed
+  sources: org repos and the marketplace register's commercial
+  doors. The pending transfer's payload (off-repo model weights,
+  generated media, the original DOOR-REGISTRY.json) and live
+  runtime state (savage-relay's seats) are carried as GATED
+  entries — named with their reasons, locator null — not as
+  registered doors. They enter the registry only when a landed
+  source enumerates them.
+- **The door registry carries its sources' facts at their as-of
+  dates; it re-observes nothing (DATA-E1).** The first live
+  registry's commercial doors are savage-marketplace's
+  `stripe-links.json` as of 2026-11-08 — a door the source marks
+  active is registered active even if the live Stripe state has
+  since changed (the registry names the disagreement only when
+  its source records it). No fetcher ships; snapshots are
+  composed by the operator from landed sources.
 - **The estate attestation reports GT citation drift; it does not
   re-verify GT contents (PROOF-E1).** A repo whose GROUND_TRUTH.md
   cites its current head is CURRENT even if every sentence in the
