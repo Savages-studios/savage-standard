@@ -17,6 +17,10 @@ savage-standard code was written, from the pre-build trees of each line.
 
 ## BEFORE metric
 
+**Evidence state: OBSERVED** — measured 2026-11-10 from the pre-build
+trees by reading each producer's source (see below); the same
+measurement is recorded in `GROUND_TRUTH.md`.
+
 Receipt dialects verifiable by a SINGLE independent tool (usable by an
 outsider, outside the producing repo): **0 of 7 = 0%**.
 

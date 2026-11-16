@@ -1,0 +1,74 @@
+name: claim-gate
+
+# The estate claim gate, in CI shape. Runs `savage-verify gate` over
+# the checked-out repository tree and fails the job when the tree's
+# public documents carry unlabeled or contradicted claims (see
+# savage_standard/gate.py for the scope rule, the label rule set and
+# the four contradiction rules).
+#
+# Reuse from another estate repo:
+#   jobs:
+#     claim-gate:
+#       uses: Savages-studios/savage-standard/.github/workflows/claim-gate.yml@main
+#       with:
+#         attestation-path: path/to/attestation.json   # optional
+# (A reusable workflow's checkout is the CALLER's repository, so the
+# gate runs over the caller's tree; the savage-standard package itself
+# is fetched from the pinned ref below to provide the gate.)
+
+on:
+  workflow_call:
+    inputs:
+      attestation-path:
+        description: "Sealed savage.estate_attestation.v1 artifact in the caller's tree (optional)"
+        required: false
+        type: string
+        default: ""
+      gt-budget:
+        description: "Tolerated DRIFTED/MISSING GT count for the record in play"
+        required: false
+        type: number
+        default: 0
+  workflow_dispatch:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  claim-gate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out the tree to gate
+        uses: actions/checkout@v4
+      - name: Check out savage-standard (the gate itself)
+        uses: actions/checkout@v4
+        with:
+          repository: Savages-studios/savage-standard
+          ref: main
+          path: .claim-gate/savage-standard
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Run the claim gate
+        run: |
+          ATT=""
+          if [ -n "${{ inputs.attestation-path }}" ]; then
+            ATT="--attestation ${{ inputs.attestation-path }}"
+          fi
+          PYTHONPATH=.claim-gate/savage-standard python3 -m savage_standard.cli gate . $ATT --gt-budget "${{ inputs.gt-budget || 0 }}"
+  gate-tests:
+    # The gate's own planted controls (BAD fixture must fail naming
+    # both planted failures; CLEAN fixture must pass) plus the full
+    # savage-standard suite.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          repository: Savages-studios/savage-standard
+          ref: main
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Run the savage-standard suite
+        run: python3 -m unittest discover -s tests

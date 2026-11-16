@@ -14,6 +14,19 @@ Usage:
                         [--published-source URL ...] --source-url URL
                         [--source-file NAME] [--recorded-at T] [-o OUT]
   savage-verify claims        (print the claims-gate inventory summary)
+  savage-verify gate REPO_TREE [--attestation ARTIFACT.json]
+                        [--repo NAME] [--gt-budget N] [--json]
+                        (the estate claim gate: FAILS — exit 1, every
+                        failure named — when the tree's public docs
+                        carry UNLABELED claims (no claim-state label,
+                        per the Savage-AI-style linter's rule set,
+                        composed clean-room in savage_standard/gate.py),
+                        CONTRADICTED claims (a stated verified / LIVE
+                        state refuted by the attestation record or by
+                        the tree's own missing GROUND_TRUTH.md), or a
+                        GT currency of DRIFTED / MISSING beyond
+                        --gt-budget (default 0); exit 0 = PASS,
+                        2 = usage/input error)
   savage-verify estate --snapshot FILE [-o OUT] [--json]
                         (PROOF-E1: build the estate attestation artifact
                         from a snapshot file; exit 0 = no failures,
@@ -147,8 +160,64 @@ def _estate_main(argv) -> int:
     return 0 if not artifact["failures"] else 1
 
 
+def _gate_main(argv) -> int:
+    from . import gate as gate_mod
+    p = argparse.ArgumentParser(prog="savage-verify gate")
+    p.add_argument("tree", help="materialized repository tree to gate")
+    p.add_argument("--attestation",
+                   help="sealed savage.estate_attestation.v1 artifact; "
+                        "verified (digest + re-derivation) before any "
+                        "verdict is taken from it")
+    p.add_argument("--repo",
+                   help="attestation record to gate against (default: "
+                        "a single-record artifact's record, else the "
+                        "record named by the tree directory)")
+    p.add_argument("--gt-budget", type=int, default=0,
+                   help="tolerated DRIFTED/MISSING GT count for the "
+                        "record in play (default 0)")
+    p.add_argument("--json", action="store_true")
+    a = p.parse_args(argv)
+    if not os.path.isdir(a.tree):
+        print(f"gate refused: {a.tree} is not a directory",
+              file=sys.stderr)
+        return 2
+    attestation = None
+    if a.attestation:
+        try:
+            with open(a.attestation, encoding="utf-8") as fh:
+                attestation = json.load(fh)
+        except (OSError, ValueError) as e:
+            print(f"gate refused: cannot read attestation: {e}",
+                  file=sys.stderr)
+            return 2
+        if not isinstance(attestation, dict):
+            print("gate refused: attestation is not a JSON object",
+                  file=sys.stderr)
+            return 2
+    report = gate_mod.gate_tree(a.tree, attestation=attestation,
+                                repo_name=a.repo, gt_budget=a.gt_budget)
+    if a.json:
+        print(json.dumps(report, indent=1))
+    else:
+        rec = report["record"]
+        rec_line = (f"attestation record: {rec['repo']} — GT "
+                    f"{rec['gt_currency']}, CI {rec['ci_state']}"
+                    if rec else "attestation record: none")
+        print(f"gate: {report['documents_scanned']} public documents, "
+              f"{report['claims_found']} claims; {rec_line}; "
+              f"GT budget {report['gt_budget']} "
+              f"(over-budget count {report['gt_over_budget_count']})")
+        for failure in report["failures"]:
+            print(f"failure: {gate_mod.format_failure(failure)}",
+                  file=sys.stderr)
+        print(f"gate verdict: {report['verdict']}")
+    return 0 if report["verdict"] == "PASS" else 1
+
+
 def main(argv=None) -> int:
     argv = list(sys.argv[1:] if argv is None else argv)
+    if argv and argv[0] == "gate":
+        return _gate_main(argv[1:])
     if argv and argv[0] == "estate":
         return _estate_main(argv[1:])
     if argv and argv[0] == "claims":

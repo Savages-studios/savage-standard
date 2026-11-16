@@ -25,7 +25,9 @@ This repo is the one standard they converge on:
    **REJECTED**, or **UNVERIFIABLE** — never a silent pass.
 3. **The claims-gate inventory** (`savage_standard/claims.py`) — the
    estate's public claims enumerated from the site repo and catalogs,
-   with the honest BEFORE number: **1 of 12 claim groups (8.3%) are
+   with the honest BEFORE number (claim state: VERIFIED as an
+   enumeration — the inventory itself is the verified record, see
+   `GROUND_TRUTH.md`): **1 of 12 claim groups (8.3%) are
    gate-issued with outsider-recomputable receipts today.** The register
    target is 100%; this package is the instrument, not the adoption.
 4. **SIA-E1 — the external recompute adapter** (`savage_standard/helm.py`,
@@ -83,6 +85,30 @@ This repo is the one standard they converge on:
    CI state is the latest *recorded* runs, not a re-run of any
    suite; claims receipt status is carried from the claims
    inventory, not re-adjudicated.
+7. **The estate claim gate** (`savage_standard/gate.py`, CLI
+   subcommand `gate`) — the two machines above composed into one
+   CI-runnable gate. `savage-verify gate REPO_TREE` scans a
+   materialized repo's public documents (root Markdown plus the
+   `docs/` tree, the documented scope rule) and exits nonzero naming
+   every failure: UNLABELED claims (numeric performance figures and
+   capability claims carrying none of the claim-state labels the
+   Savage-AI-style claim linter requires — its rule set composed
+   here clean-room from its documented behavior, with no runtime
+   dependency on that repo), CONTRADICTED claims (a stated verified
+   or LIVE state refuted by the attestation record under the
+   gate's four documented mechanical rules, or a verified label in
+   a tree with no GROUND_TRUTH.md at its root), and a GT currency
+   of DRIFTED or MISSING beyond `--gt-budget` (default zero) when
+   a sealed attestation is supplied with `--attestation` (the
+   artifact is verified — digest plus full re-derivation — before
+   any verdict is taken from it). Before this build, claim gates
+   that fail CI on a contradicted or unlabeled claim numbered
+   zero: the inventory only printed, the attestation never read
+   prose, and the linter lived in another repo wired to no CI
+   here. A reusable workflow ships at
+   `.github/workflows/claim-gate.yml`. What the gate does NOT do:
+   it checks labels and their agreement with the evidence above;
+   it does not re-measure any figure or re-run any suite.
 
 ## Why a new tiny repo
 
@@ -129,7 +155,8 @@ python3 -m savage_standard.cli sign ENVELOPE.json --key-file ~/outside-any-repo/
 python3 -m savage_standard.cli estate --snapshot SNAPSHOT.json -o ATTESTATION.json   # PROOF-E1: exit 0 = no failures, 1 = attested WITH named failures, 2 = usage/input error
 python3 -m savage_standard.cli estate --check ATTESTATION.json                       # verify a sealed attestation (digest + full re-derivation)
 python3 -m savage_standard.cli estate --org Savages-studios --fetch -o ATTESTATION.json   # live snapshot via the GitHub API ($GITHUB_TOKEN)
-python3 -m unittest discover -s tests   # 96 tests: genuine + tamper per dialect, incl. the HELM recompute dialect, envelope signatures, the signed delivery-pair bridge, the atlas-call dialect, and the estate attestation
+python3 -m savage_standard.cli gate REPO_TREE [--attestation ATTESTATION.json] [--repo NAME] [--gt-budget N]   # the estate claim gate: exit 0 = PASS, 1 = FAIL with every failure named, 2 = usage/input error
+python3 -m unittest discover -s tests   # 113 tests: genuine + tamper per dialect, incl. the HELM recompute dialect, envelope signatures, the signed delivery-pair bridge, the atlas-call dialect, the estate attestation, and the claim gate
 ```
 
 Exit codes: 0 = VERIFIED / VERIFIED-STRUCTURAL, 1 = REJECTED,

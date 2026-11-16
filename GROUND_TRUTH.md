@@ -37,6 +37,17 @@ snapshot, the CLI gains an `estate` subcommand, and
 GitHub API for token holders. See the PROOF-E1 lines in the component
 table, Metrics, and "What is NOT true".
 
+The claim-gate build (this build) composes the attestation with the
+claim-state linter rule set from Savage-AI-style (EVO-29,
+`scripts/claim_linter.py` @ `6a7f65e6`) into one CI-runnable gate:
+`savage_standard/gate.py` plus the CLI `gate` subcommand fail a repo
+tree whose public documents carry unlabeled or contradicted claims,
+with a reusable workflow at `.github/workflows/claim-gate.yml`. The
+linter's rule set is composed CLEAN-ROOM from its documented
+behavior — no code is imported from Savage-AI-style and this package
+has no runtime dependency on that repo. See the claim-gate lines in
+the component table, Metrics, and "What is NOT true".
+
 ## Component state
 
 | Component | State | How to verify |
@@ -53,13 +64,45 @@ table, Metrics, and "What is NOT true".
 | `savage_standard/verify.py` — dialect detection + verdict assembly (VERIFIED / VERIFIED-STRUCTURAL / REJECTED / UNVERIFIABLE) | VERIFIED | Same suite; garbage input returns UNVERIFIABLE, never a pass. Envelope path additionally emits an `envelope-signature` leg when a `signatures` member is present (pass / fail / unverifiable per the registry); unsigned envelopes produce no such leg and keep their exact pre-custody verdicts. |
 | `savage_standard/estate.py` — PROOF-E1 attestation core: per-repo record derivation from a snapshot (GT citation extraction + currency, latest-per-workflow CI state, claims-inventory cross-reference by case-sensitive substring of claim/basis text), the sealed `savage.estate_attestation.v1` artifact (snapshot embedded verbatim, SHA-256 over the JCS canonical form), and `verify_artifact` (digest recompute + full re-derivation compare, mismatches naming repo + field) | VERIFIED | `tests/test_estate.py` (22 tests): clean CURRENT repo, DRIFTED + FAILING repo (older success superseded by latest failure), MISSING repo, UNPINNED + NONE_RECORDED repo, canonical-branch citation, short-prefix citation, `**Head:**`-over-canonical preference, claims attachment, exact summary counts, digest verification, and re-digested tamper controls (flipped currency verdict, altered summary count, cleared failure list all REJECTED by re-derivation; snapshot tamper breaks the digest). |
 | `savage_standard/estate_fetch.py` — PROOF-E1 snapshot fetcher for token holders: stdlib `urllib` against api.github.com (org repos paginated; per repo default-branch head, GROUND_TRUTH.md via contents API with 404 → null, up to 5 latest default-branch workflow runs) | BUILT; network path NOT exercised by the suite | The suite proves only the CLI's token-missing refusal (exit 2 with `$GITHUB_TOKEN` unset) and never calls the network; the live org-wide fetch is the operator's run (Knights, with the estate credential route). |
-| `savage_standard/cli.py` — `savage-verify` CLI (verify / wrap / recompute / claims / keygen / sign / estate; `--keys` registry override on verify) | VERIFIED | Smoke-run in the PR body; exit codes 0/1/2 by verdict. `tests/test_signing.py::TestDemoAndCustody::test_cli_keygen_sign_verify` drives keygen→sign→verify end to end. The `estate` subcommand's exits are pinned by `tests/test_estate.py::TestCli`: build 0 (clean) / 1 (attested WITH named failures, printed to stderr) / 2 (usage/input error, incl. empty repos list and unset `$GITHUB_TOKEN`); `--check` 0 iff the artifact verifies, else 1 with mismatches printed. |
+| `savage_standard/gate.py` — the estate claim gate: scans a materialized repo tree's public documents (root Markdown + `docs/` tree; apparatus `ARTIFACT_INDEX.md` / `GROUND_TRUTH.md` excluded) for claims under the Savage-AI-style linter's rule set (claim patterns, claim-state vocabulary, label forms, qualification forms, exemptions — re-implemented clean-room from that linter's documented behavior; no import, no runtime dependency), extracts each claim's stated state, and refutes it under four documented mechanical contradiction rules (C1 verified vs attestation GT DRIFTED/MISSING; C2 verified vs attestation CI FAILING; C3 verified vs a tree with no root GROUND_TRUTH.md, only when no attestation record is in play; C4 LIVE vs attestation CI FAILING or GT MISSING), plus the GT-budget rule (DRIFTED/MISSING count for the record in play vs `--gt-budget`, default 0). A supplied attestation is verified via `estate.verify_artifact` before any verdict is taken from it; an unverifying artifact or a missing record is a named failure, never a silent pass | VERIFIED by planted controls | `tests/test_gate.py` (17 tests) incl. fixture trees under `tests/fixtures/gate/`: the BAD fixture (one unlabeled throughput claim + one verified-labeled claim under a DRIFTED attestation) FAILs naming both the UNLABELED and the CONTRADICTED failure; the CLEAN fixture (labeled claims, CURRENT/PASSING attestation) PASSes; C2/C3/C4 each pinned by a dedicated control; a re-digested tampered attestation is an ATTESTATION failure and its verdicts are never used; budget 0 fails / budget 1 passes the same DRIFTED record against clean docs. |
+| `.github/workflows/claim-gate.yml` — reusable GitHub Actions workflow (`workflow_call`, plus push/PR/dispatch on this repo) running `savage-verify gate` over the checked-out tree and the full suite in a second job | BUILT; NOT yet run in GitHub Actions | The workflow file is new in this landing — this repo carried no `.github/workflows/` at all before it — so no Actions run of it exists yet; its steps mirror the exact local commands proven in the PR body. |
+| `savage_standard/cli.py` — `savage-verify` CLI (verify / wrap / recompute / claims / keygen / sign / estate / gate; `--keys` registry override on verify) | VERIFIED | Smoke-run in the PR body; exit codes 0/1/2 by verdict. `tests/test_signing.py::TestDemoAndCustody::test_cli_keygen_sign_verify` drives keygen→sign→verify end to end. The `estate` subcommand's exits are pinned by `tests/test_estate.py::TestCli`: build 0 (clean) / 1 (attested WITH named failures, printed to stderr) / 2 (usage/input error, incl. empty repos list and unset `$GITHUB_TOKEN`); `--check` 0 iff the artifact verifies, else 1 with mismatches printed. The `gate` subcommand's exits are pinned by `tests/test_gate.py::TestCli`: 1 on the BAD fixture tree, 0 on the CLEAN fixture tree, 2 on a missing tree. |
 | `savage_standard/claims.py` — claims-gate inventory | VERIFIED as an enumeration | Rows cite their sources (site repo main `4efd6486`, marketplace `catalog.json`, Stripe registry, fix-program results). The BEFORE number is definitional — the definition is printed in the module docstring so it can be argued with. |
 | `fixtures/` — real artifacts from the fix program (and, for SIA-E1, one real external artifact) | VERIFIED | `fixtures/PROVENANCE.md` names each artifact's origin. |
 | `pyproject.toml` + `MANIFEST.in` — packaging: setuptools backend, `savage-verify` console script, `key_registry.json` package-data; the sdist grafts the full evidence tree (`fixtures/`, `tests/`, `vendor/`) plus this file | VERIFIED (fix #85, 2026-11-10) | From a clean venv: `pip install .` in a checkout succeeds; `savage-verify fixtures/signed-envelope-demo.json` from an unrelated cwd prints the same verdict + legs as the from-source run (byte-identical output, measured); the suite passes 74/74 against the INSTALLED package and 74/74 from an extracted sdist. BEFORE fix #85 the sdist shipped the test modules without any of their data (extracted-sdist suite: 56 tests ran, 52 FileNotFoundError errors). The wheel remains runtime-only; the package is installable but NOT published to any index, and no consumer imports it yet (see "What is NOT true"). |
 
 ## Metrics (Evolution Rule v2)
 
+- Claim gate (2026-11-15; BEFORE measured on the pristine tree @
+  `e78e75e2`, version 0.6.0): claim gates that fail CI on a
+  contradicted or unlabeled claim = **0** — verified by reading the
+  CLI (subcommands verify / wrap / recompute / claims / keygen /
+  sign / estate; `claims` only prints the inventory, `estate` never
+  reads prose) and by the tree carrying no `.github/workflows/`
+  directory at all. AFTER (version 0.7.0): **1** landed gate,
+  `savage-verify gate`, composing the estate attestation's verdicts
+  with the Savage-AI-style linter's label rule set. Planted
+  controls: the BAD fixture is caught on both planted failures
+  (UNLABELED throughput claim, CONTRADICTED verified claim under a
+  DRIFTED attestation — two of two), the CLEAN fixture passes, and
+  each contradiction rule C1–C4 has a dedicated test. Self-
+  application, run at landing time and reported as measured: the
+  gate over this repo's own tree first named exactly two UNLABELED
+  claims (the BEFORE metric's percent figure in
+  `BEFORE-MEASUREMENT.md` and the claims-inventory percent figure
+  in `README.md`); both were honestly labeled from states this file
+  already establishes (OBSERVED for the source-read BEFORE
+  measurement; VERIFIED as an enumeration for the inventory), after
+  which this tree PASSes the gate with no attestation supplied.
+  With a self-attestation built from this tree's materialized state
+  (head `e78e75e2`, this file's text, no CI runs recorded) the gate
+  also PASSes: the record reads GT UNPINNED (this file carries no
+  head citation — UNPINNED is not a budget or contradiction
+  trigger) and CI NONE_RECORDED. Over the Savage-AI-style tree as
+  materialized for this build (its `README.md` plus the apparatus
+  `GROUND_TRUTH.md`; the rest of that tree was not materialized)
+  the gate PASSes: five claims found, zero failures. Suite
+  **96 → 113** tests, all passing.
 - PROOF-E1 estate attestation (2026-11-15; BEFORE measured on the
   pristine tree @ `c865a145`, version 0.5.0): `savage-verify estate`
   did not exist — the argument fell through to the receipt path and
@@ -189,6 +232,35 @@ table, Metrics, and "What is NOT true".
 
 ## What is NOT true
 
+- **The claim gate does not prove a labeled claim true.** It checks
+  that claims carry claim-state labels and that two stated states
+  (verified, LIVE) are not refuted by the attestation record or by
+  a missing root GROUND_TRUTH.md under rules C1–C4. A claim labeled
+  UNPROVEN, REPORTED or OBSERVED is never contradicted by the gate
+  however wrong the underlying figure is; re-measurement stays with
+  each line's own gates and receipts.
+- **The gate's linter rule set is a clean-room reimplementation, not
+  the Savage-AI-style linter itself.** Label forms, claim patterns
+  and exemptions were re-derived from that linter's documented
+  behavior and are pinned by this package's own tests; the two
+  implementations are not byte-identical code, Savage-AI-style's
+  own linter tests do not run in this suite, and a future change to
+  the linter's rules does not propagate here automatically — the
+  rule sets converge by deliberate re-composition, the same
+  discipline as the vendored dialect adapters.
+- **The claim-gate workflow has never run in GitHub Actions.**
+  `.github/workflows/claim-gate.yml` is new in this landing and
+  this repo had no workflows before it; the gate is proven locally
+  (suite + CLI runs in the PR body), and the workflow's first real
+  Actions run happens only after this landing merges.
+- **Self-application coverage is stated exactly, not estate-wide.**
+  The claim gate has been run over this repo's full tree and over
+  the Savage-AI-style subset materialized for this build (root
+  `README.md` + apparatus `GROUND_TRUTH.md` only — that repo's
+  `docs/` tree and remaining root documents were not materialized
+  and were not gated). No other estate repo's documents have been
+  gated yet; adoption is one `--attestation` run per repo, or the
+  reusable workflow, per repo.
 - **The estate attestation reports GT citation drift; it does not
   re-verify GT contents (PROOF-E1).** A repo whose GROUND_TRUTH.md
   cites its current head is CURRENT even if every sentence in the
