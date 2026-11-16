@@ -125,10 +125,24 @@ This repo is the one standard they converge on:
    erased failure is caught even under an honestly recomputed
    digest. A snapshot registering zero doors is refused, and a
    commercial door its source marks inactive is registered WITH a
-   named failure. Before this build, named assets under a sealed,
+   named failure. A commercial door may also carry per-source
+   observations (marketplace register, the DOOR-REGISTRY.json
+   registry of record, a first-hand Stripe readback), in which
+   case its identity fields and its verification verdict are
+   derived from those observations: agreement across every source
+   carrying a field derives VERIFIED with the sources named; any
+   disagreement derives DISAGREEMENT, follows the latest
+   observation, and registers a named failure per disagreed field.
+   Before this build, named assets under a sealed,
    re-derivable registry numbered **0**; the first live registry
    (2026-11-16) registers **121 doors** (45 repos + 76 commercial,
    all 76 active in their source) with 2 gated classes named.
+   The cross-verified live registry (2026-11-16) registers the
+   same 121 doors with 75 of the 76 commercial doors VERIFIED
+   across all three sources and one named disagreement
+   (SUB-TOOLDIFF-TEAM-79, registered inactive per the latest
+   readback); the DOOR-REGISTRY.json asset is un-gated by that
+   landing, while the rest of the transfer payload stays gated.
    What the registry does NOT do: it carries its sources' facts at
    their as-of dates — it does not re-observe Stripe, GitHub, or
    any live system; no fetcher ships.
