@@ -167,6 +167,183 @@ class TamperTest(unittest.TestCase):
         self.assertTrue(any("kind" in m for m in mismatches), mismatches)
 
 
+CROSS_SOURCES = {
+    "register": {"repo": "Savages-studios/savage-marketplace",
+                 "path": "stripe-links.json", "as_of": "2026-11-08"},
+    "registry_of_record": {"repo": "on-host (Knights VM)",
+                           "path": "~/workspace/transfer-pull/"
+                                 "knights-transfer/DOOR-REGISTRY.json",
+                           "as_of": "2026-11-05",
+                           "sha256": "0" * 64},
+    "readback": {"repo": "on-host (Knights VM, first-hand readback)",
+                 "path": "~/workspace/hunter-recommission/"
+                         "gen2-readback-2026-11-13.json",
+                 "as_of": "2026-11-13"},
+}
+
+
+def cross_snapshot():
+    snap = snapshot()
+    snap["sources"]["commercial_doors"] = copy.deepcopy(CROSS_SOURCES)
+    snap["commercial_doors"] = [
+        {"sku": "ALPHA-100", "observations": {
+            "register": {"product_name": "Alpha",
+                         "url": "https://buy.stripe.com/alpha",
+                         "amount_minor": 10000, "currency": "usd",
+                         "recurring": None, "active": True},
+            "registry_of_record": {
+                "name": "Alpha", "amount_cents": 10000,
+                "billing": "one_time",
+                "url": "https://buy.stripe.com/alpha", "active": True,
+                "link_metadata": {"sku": "ALPHA-100"}},
+            "readback": {"product_name": "Alpha",
+                         "url": "https://buy.stripe.com/alpha",
+                         "amount_minor": 10000, "currency": "usd",
+                         "recurring": None, "active": True}}},
+        {"sku": "BETA-200", "observations": {
+            "register": {"product_name": "Beta",
+                         "url": "https://buy.stripe.com/beta",
+                         "amount_minor": 20000, "currency": "usd",
+                         "recurring": "month", "active": True},
+            "registry_of_record": {
+                "name": "Beta", "amount_cents": 20000,
+                "billing": "subscription_month",
+                "url": "https://buy.stripe.com/beta", "active": True,
+                "link_metadata": {"sku": "BETA-200"}},
+            "readback": {"product_name": "Beta",
+                         "url": "https://buy.stripe.com/beta",
+                         "amount_minor": 20000, "currency": "usd",
+                         "recurring": "month", "active": False}}},
+    ]
+    return snap
+
+
+class CrossVerifyTest(unittest.TestCase):
+    def test_agreeing_sources_verify_with_sources_named(self):
+        art = doors.build_registry(cross_snapshot())
+        alpha = art["records"][2]
+        self.assertEqual(alpha["verification"], "VERIFIED")
+        self.assertEqual(alpha["verification_sources"],
+                         ["register", "registry_of_record", "readback"])
+        # Canonical fields derive from the observations: currency is
+        # carried only by register + readback, recurring is voted on
+        # by the registry of record through its billing vocabulary.
+        self.assertEqual(alpha["currency"], "usd")
+        self.assertIsNone(alpha["recurring"])
+        self.assertEqual(alpha["amount_minor"], 10000)
+        self.assertEqual(alpha["sources"]["registry_of_record"]
+                         ["sha256"], "0" * 64)
+        self.assertEqual(art["summary"]["commercial_verified"], 1)
+        ok, mismatches = doors.verify_registry(art)
+        self.assertTrue(ok, mismatches)
+
+    def test_disagreement_follows_latest_and_names_failure(self):
+        art = doors.build_registry(cross_snapshot())
+        beta = art["records"][3]
+        self.assertEqual(beta["verification"], "DISAGREEMENT")
+        self.assertIs(beta["active"], False)  # readback (2026-11-13)
+        self.assertEqual(art["summary"]["commercial_active"], 1)
+        self.assertEqual(art["summary"]["commercial_disagreements"], 1)
+        self.assertEqual(len(art["failures"]), 1)
+        reason = art["failures"][0]["reason"]
+        self.assertEqual(art["failures"][0]["door"], "BETA-200")
+        self.assertIn("disagreement on active", reason)
+        self.assertIn("register=True", reason)
+        self.assertIn("registry_of_record=True", reason)
+        self.assertIn("readback=False", reason)
+        ok, _ = doors.verify_registry(art)
+        self.assertTrue(ok)
+
+    def test_disagreement_on_amount_follows_readback(self):
+        snap = cross_snapshot()
+        snap["commercial_doors"][0]["observations"]["readback"][
+            "amount_minor"] = 11000
+        art = doors.build_registry(snap)
+        alpha = art["records"][2]
+        self.assertEqual(alpha["verification"], "DISAGREEMENT")
+        self.assertEqual(alpha["amount_minor"], 11000)
+        self.assertIn("disagreement on amount_minor",
+                      art["failures"][0]["reason"])
+
+    def test_agreed_inactive_is_verified_with_named_failure(self):
+        snap = cross_snapshot()
+        for obs in snap["commercial_doors"][0]["observations"].values():
+            obs["active"] = False
+        art = doors.build_registry(snap)
+        alpha = art["records"][2]
+        self.assertEqual(alpha["verification"], "VERIFIED")
+        self.assertIs(alpha["active"], False)
+        reasons = [f["reason"] for f in art["failures"]
+                   if f["door"] == "ALPHA-100"]
+        self.assertEqual(
+            reasons,
+            ["commercial door not active in its source registry"])
+
+    def test_unsourced_observation_refused(self):
+        snap = cross_snapshot()
+        del snap["sources"]["commercial_doors"]["readback"]
+        with self.assertRaises(ValueError):
+            doors.build_registry(snap)
+
+    def test_unknown_billing_refused(self):
+        snap = cross_snapshot()
+        snap["commercial_doors"][0]["observations"][
+            "registry_of_record"]["billing"] = "subscription_week"
+        with self.assertRaises(ValueError):
+            doors.build_registry(snap)
+
+    def test_legacy_entries_carry_no_verification(self):
+        art = doors.build_registry(snapshot())
+        rec = art["records"][2]
+        self.assertIsNone(rec["verification"])
+        self.assertIsNone(rec["observations"])
+        self.assertNotIn("commercial_verified", art["summary"])
+
+
+class CrossTamperTest(unittest.TestCase):
+    """Planted controls for cross-verification: the verdict is
+    recomputed from the snapshot's embedded observations, so flipping
+    an observation in a record, erasing a disagreement, or upgrading
+    a verdict — each honestly re-digested — is REJECTED."""
+
+    def test_flipped_observation_redigested_rejected(self):
+        art = doors.build_registry(cross_snapshot())
+        art["records"][3]["observations"]["readback"]["active"] = True
+        redigest(art)
+        ok, mismatches = doors.verify_registry(art)
+        self.assertFalse(ok)
+        self.assertTrue(any("BETA-200" in m and "observations" in m
+                            for m in mismatches), mismatches)
+
+    def test_erased_disagreement_redigested_rejected(self):
+        art = doors.build_registry(cross_snapshot())
+        art["records"][3]["failures"] = []
+        art["failures"] = []
+        redigest(art)
+        ok, mismatches = doors.verify_registry(art)
+        self.assertFalse(ok)
+        self.assertTrue(any("failures" in m for m in mismatches),
+                        mismatches)
+
+    def test_upgraded_verdict_redigested_rejected(self):
+        art = doors.build_registry(cross_snapshot())
+        art["records"][3]["verification"] = "VERIFIED"
+        redigest(art)
+        ok, mismatches = doors.verify_registry(art)
+        self.assertFalse(ok)
+        self.assertTrue(any("BETA-200" in m and "verification" in m
+                            for m in mismatches), mismatches)
+
+    def test_flipped_canonical_field_redigested_rejected(self):
+        art = doors.build_registry(cross_snapshot())
+        art["records"][3]["active"] = True
+        redigest(art)
+        ok, mismatches = doors.verify_registry(art)
+        self.assertFalse(ok)
+        self.assertTrue(any("BETA-200" in m and "active" in m
+                            for m in mismatches), mismatches)
+
+
 class CliTest(unittest.TestCase):
     def _run(self, argv):
         with tempfile.TemporaryDirectory() as td:
