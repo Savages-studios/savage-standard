@@ -14,6 +14,20 @@ Usage:
                         [--published-source URL ...] --source-url URL
                         [--source-file NAME] [--recorded-at T] [-o OUT]
   savage-verify claims        (print the claims-gate inventory summary)
+  savage-verify estate --snapshot FILE [-o OUT] [--json]
+                        (PROOF-E1: build the estate attestation artifact
+                        from a snapshot file; exit 0 = no failures,
+                        1 = artifact produced WITH named failures
+                        (printed to stderr), 2 = usage/input error —
+                        an empty repos list never attests silently)
+  savage-verify estate --check ARTIFACT
+                        (verify a sealed attestation: digest recomputed
+                        and every record re-derived from the embedded
+                        snapshot; exit 0 iff it verifies, else 1 with
+                        the mismatches printed)
+  savage-verify estate --org ORG --fetch [-o OUT] [--json]
+                        (collect the snapshot live from the GitHub API;
+                        token read from $GITHUB_TOKEN, exit 2 when unset)
   savage-verify keygen --key-id ID --out PRIVATE.json [--bits 3072]
                         (generate an estate signing key: the PRIVATE key
                         is written mode-0600 to --out — choose a path
@@ -34,6 +48,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import sys
 from datetime import datetime, timezone
 
@@ -50,8 +65,92 @@ def _print_human(out: dict) -> None:
         print(f"  note: {note}")
 
 
+def _estate_main(argv) -> int:
+    from . import estate as estate_mod
+    p = argparse.ArgumentParser(prog="savage-verify estate")
+    p.add_argument("--snapshot", help="snapshot JSON file to attest")
+    p.add_argument("--check", help="sealed attestation artifact to verify")
+    p.add_argument("--org", help="GitHub org for --fetch")
+    p.add_argument("--fetch", action="store_true",
+                   help="collect the snapshot live (token: $GITHUB_TOKEN)")
+    p.add_argument("-o", "--out")
+    p.add_argument("--json", action="store_true")
+    a = p.parse_args(argv)
+    modes = sum(bool(x) for x in (a.snapshot, a.check, a.fetch))
+    if modes != 1:
+        p.error("exactly one of --snapshot, --check or --fetch is required")
+    if a.fetch and not a.org:
+        p.error("--fetch requires --org")
+    if a.check:
+        try:
+            with open(a.check, encoding="utf-8") as fh:
+                artifact = json.load(fh)
+        except (OSError, ValueError) as e:
+            print(f"estate --check refused: {e}", file=sys.stderr)
+            return 2
+        if not isinstance(artifact, dict):
+            print("estate --check refused: artifact is not a JSON object",
+                  file=sys.stderr)
+            return 2
+        ok, mismatches = estate_mod.verify_artifact(artifact)
+        if ok:
+            s = artifact.get("summary") or {}
+            print(f"estate attestation VERIFIED: {artifact.get('org')} @ "
+                  f"{artifact.get('taken_at')}, "
+                  f"{s.get('repos_attested')} repos attested")
+            return 0
+        for m in mismatches:
+            print(f"mismatch: {m}", file=sys.stderr)
+        print("estate attestation REJECTED", file=sys.stderr)
+        return 1
+    if a.fetch:
+        token = os.environ.get("GITHUB_TOKEN")
+        if not token:
+            print("estate --fetch refused: GITHUB_TOKEN is not set",
+                  file=sys.stderr)
+            return 2
+        from .estate_fetch import fetch_snapshot
+        try:
+            snapshot = fetch_snapshot(a.org, token)
+        except (ValueError, RuntimeError, OSError) as e:
+            print(f"estate --fetch failed: {e}", file=sys.stderr)
+            return 2
+    else:
+        try:
+            with open(a.snapshot, encoding="utf-8") as fh:
+                snapshot = json.load(fh)
+        except (OSError, ValueError) as e:
+            print(f"estate refused: {e}", file=sys.stderr)
+            return 2
+    try:
+        artifact = estate_mod.build_attestation(snapshot)
+    except ValueError as e:
+        print(f"estate refused: {e}", file=sys.stderr)
+        return 2
+    text = json.dumps(artifact, indent=1) + "\n"
+    if a.out:
+        with open(a.out, "w", encoding="utf-8") as fh:
+            fh.write(text)
+        s = artifact["summary"]
+        print(f"estate attestation: {artifact['org']} @ "
+              f"{artifact['taken_at']}: {s['repos_attested']} repos, "
+              f"{s['gt_current']} GT current, {s['ci_passing']} CI "
+              f"passing, {len(artifact['failures'])} failures")
+        print(f"written to {a.out}")
+        if a.json:
+            print(text, end="")
+    else:
+        print(text, end="")
+    for failure in artifact["failures"]:
+        print(f"failure: {failure['repo']}: {failure['reason']}",
+              file=sys.stderr)
+    return 0 if not artifact["failures"] else 1
+
+
 def main(argv=None) -> int:
     argv = list(sys.argv[1:] if argv is None else argv)
+    if argv and argv[0] == "estate":
+        return _estate_main(argv[1:])
     if argv and argv[0] == "claims":
         for row in INVENTORY:
             print(f"{row['id']:<28} {row['class']:<16} gated={row['gated']!s:<5} {row['claim']}")

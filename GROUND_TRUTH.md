@@ -29,6 +29,14 @@ committed. See the custody lines in the component table, Metrics, and
 "What is NOT true" — in particular: no real estate key has been minted
 yet, so no production envelope is signed today.
 
+PROOF-E1 "The Estate Attestation" (this build) adds the one-command
+estate attestation: `savage_standard/estate.py` derives a sealed,
+re-derivable attestation artifact for a whole org from a single
+snapshot, the CLI gains an `estate` subcommand, and
+`savage_standard/estate_fetch.py` collects the snapshot live from the
+GitHub API for token holders. See the PROOF-E1 lines in the component
+table, Metrics, and "What is NOT true".
+
 ## Component state
 
 | Component | State | How to verify |
@@ -43,13 +51,43 @@ yet, so no production envelope is signed today.
 | `savage_standard/helm.py` — SIA-E1 recompute minter: HELM per-instance Stat merge + native receipt (`savage/external-benchmark-recompute/1`) | VERIFIED on a real external artifact | `gunzip -dc fixtures/helm-boolq-per-instance-stats.json.gz > /tmp/per_instance_stats.json`, then `savage-verify recompute /tmp/per_instance_stats.json …` reproduces `fixtures/helm-boolq-receipt.json`: 874.0/1000.0 = 0.874. (The fixture is committed gzip-compressed — GitHub's git-blobs API refuses the raw 64.7 MB blob; the decompressed bytes are exactly the SHA-256 pin in the receipt.) |
 | `savage_standard/dialects.py::verify_helm` — the eighth dialect, `helm-benchmark`: re-derives the external claim from supplied public artifact bytes | VERIFIED | Suite `TestHelm` (6 tests): genuine VERIFIED native + envelope; no-artifact VERIFIED-STRUCTURAL; edited recomputed value, edited published value, and swapped artifact all REJECTED. |
 | `savage_standard/verify.py` — dialect detection + verdict assembly (VERIFIED / VERIFIED-STRUCTURAL / REJECTED / UNVERIFIABLE) | VERIFIED | Same suite; garbage input returns UNVERIFIABLE, never a pass. Envelope path additionally emits an `envelope-signature` leg when a `signatures` member is present (pass / fail / unverifiable per the registry); unsigned envelopes produce no such leg and keep their exact pre-custody verdicts. |
-| `savage_standard/cli.py` — `savage-verify` CLI (verify / wrap / recompute / claims / keygen / sign; `--keys` registry override on verify) | VERIFIED | Smoke-run in the PR body; exit codes 0/1/2 by verdict. `tests/test_signing.py::TestDemoAndCustody::test_cli_keygen_sign_verify` drives keygen→sign→verify end to end. |
+| `savage_standard/estate.py` — PROOF-E1 attestation core: per-repo record derivation from a snapshot (GT citation extraction + currency, latest-per-workflow CI state, claims-inventory cross-reference by case-sensitive substring of claim/basis text), the sealed `savage.estate_attestation.v1` artifact (snapshot embedded verbatim, SHA-256 over the JCS canonical form), and `verify_artifact` (digest recompute + full re-derivation compare, mismatches naming repo + field) | VERIFIED | `tests/test_estate.py` (22 tests): clean CURRENT repo, DRIFTED + FAILING repo (older success superseded by latest failure), MISSING repo, UNPINNED + NONE_RECORDED repo, canonical-branch citation, short-prefix citation, `**Head:**`-over-canonical preference, claims attachment, exact summary counts, digest verification, and re-digested tamper controls (flipped currency verdict, altered summary count, cleared failure list all REJECTED by re-derivation; snapshot tamper breaks the digest). |
+| `savage_standard/estate_fetch.py` — PROOF-E1 snapshot fetcher for token holders: stdlib `urllib` against api.github.com (org repos paginated; per repo default-branch head, GROUND_TRUTH.md via contents API with 404 → null, up to 5 latest default-branch workflow runs) | BUILT; network path NOT exercised by the suite | The suite proves only the CLI's token-missing refusal (exit 2 with `$GITHUB_TOKEN` unset) and never calls the network; the live org-wide fetch is the operator's run (Knights, with the estate credential route). |
+| `savage_standard/cli.py` — `savage-verify` CLI (verify / wrap / recompute / claims / keygen / sign / estate; `--keys` registry override on verify) | VERIFIED | Smoke-run in the PR body; exit codes 0/1/2 by verdict. `tests/test_signing.py::TestDemoAndCustody::test_cli_keygen_sign_verify` drives keygen→sign→verify end to end. The `estate` subcommand's exits are pinned by `tests/test_estate.py::TestCli`: build 0 (clean) / 1 (attested WITH named failures, printed to stderr) / 2 (usage/input error, incl. empty repos list and unset `$GITHUB_TOKEN`); `--check` 0 iff the artifact verifies, else 1 with mismatches printed. |
 | `savage_standard/claims.py` — claims-gate inventory | VERIFIED as an enumeration | Rows cite their sources (site repo main `4efd6486`, marketplace `catalog.json`, Stripe registry, fix-program results). The BEFORE number is definitional — the definition is printed in the module docstring so it can be argued with. |
 | `fixtures/` — real artifacts from the fix program (and, for SIA-E1, one real external artifact) | VERIFIED | `fixtures/PROVENANCE.md` names each artifact's origin. |
 | `pyproject.toml` + `MANIFEST.in` — packaging: setuptools backend, `savage-verify` console script, `key_registry.json` package-data; the sdist grafts the full evidence tree (`fixtures/`, `tests/`, `vendor/`) plus this file | VERIFIED (fix #85, 2026-11-10) | From a clean venv: `pip install .` in a checkout succeeds; `savage-verify fixtures/signed-envelope-demo.json` from an unrelated cwd prints the same verdict + legs as the from-source run (byte-identical output, measured); the suite passes 74/74 against the INSTALLED package and 74/74 from an extracted sdist. BEFORE fix #85 the sdist shipped the test modules without any of their data (extracted-sdist suite: 56 tests ran, 52 FileNotFoundError errors). The wheel remains runtime-only; the package is installable but NOT published to any index, and no consumer imports it yet (see "What is NOT true"). |
 
 ## Metrics (Evolution Rule v2)
 
+- PROOF-E1 estate attestation (2026-11-15; BEFORE measured on the
+  pristine tree @ `c865a145`, version 0.5.0): `savage-verify estate`
+  did not exist — the argument fell through to the receipt path and
+  died with FileNotFoundError; repositories attested per run **0**,
+  and no artifact format could state an org's GT-citation / CI /
+  claims posture in one sealed, re-derivable document. AFTER
+  (version 0.6.0): one command attests **every repo in the snapshot**
+  (per-repo GT currency, CI state, claims rows, named failures) into
+  a digest-sealed artifact whose every verdict re-derives from the
+  embedded snapshot under `--check`; the proof suite's 5-repo
+  fixture attests 5 repos with summary {gt_present 4, gt_current 2,
+  ci_passing 3, claims_rows_attached 1, claims_gated 0} and 5 named
+  failures, and re-digested tampering (verdict flip, count edit,
+  failure-list erasure) is rejected by re-derivation. Suite
+  **74 → 96** tests, all passing. **First live org-wide run
+  (operator, 2026-11-16T04:05:18Z snapshot): all 45 Savages-studios
+  repos attested in one artifact** (digest `bc17fb661014dd91…`;
+  `--check` VERIFIED) with summary {repos_attested 45, gt_present
+  42, gt_current 0, ci_passing 24, claims_rows_attached 2,
+  claims_gated 1} and **72 failures named per repo, none silent**:
+  30 GT DRIFTED, 12 GT UNPINNED, 3 GT MISSING, 7 CI failing, 12 CI
+  not passing, 8 with no CI state recorded. The gt_current count of
+  0 is the measured estate state under the citation rule — every
+  estate GT cites a verification head older than its repo's current
+  head — not an attestation error; the artifact's job is to name it.
+  The snapshot for this run was collected through the estate
+  credential route; `estate_fetch.py`'s own network path remains
+  unexercised (see "What is NOT true").
 - Fix #85 packaging (2026-11-10; BEFORE measured on the pristine tree
   @ `b12cb607`, version 0.4.0): the wheel path already worked — a clean
   venv `pip install .` succeeded, the `savage-verify` console script
@@ -151,6 +189,36 @@ yet, so no production envelope is signed today.
 
 ## What is NOT true
 
+- **The estate attestation reports GT citation drift; it does not
+  re-verify GT contents (PROOF-E1).** A repo whose GROUND_TRUTH.md
+  cites its current head is CURRENT even if every sentence in the
+  file is stale or wrong — the attestation checks the citation, the
+  presence, and the `Last verified` date's age, never the truth of
+  the body. Content verification stays with each repo's own
+  code-proven GT process.
+- **CI state in an attestation is the latest recorded runs, not a
+  re-run of any suite (PROOF-E1).** The snapshot carries what the
+  forge last recorded per workflow; the attestation derives state
+  from those records (latest per workflow) and runs nothing. A green
+  attestation line means "the latest recorded run passed", never
+  "the suite passes now".
+- **Claims receipt status is carried from the claims inventory, not
+  re-adjudicated (PROOF-E1).** Attachment is a mechanical rule (the
+  repo's name as a case-sensitive substring of a row's claim or basis
+  text) and the attached `gated` flag is the inventory's own verdict,
+  copied. Rows whose text does not literally name a repo attach to
+  nothing — in the current inventory only `sia-v6-core` is named
+  verbatim (in `sia-v6-core-benchmarks`); prose names ("Genesis",
+  "Starr", "Relay") do not match the lowercase repo names, so those
+  rows attach nowhere until the inventory names repos literally.
+- **No live org-wide attestation has been run by this build
+  (PROOF-E1).** `estate_fetch.py` is shipped and its refusal paths
+  are tested, but the suite never calls the network and no real
+  Savages-studios snapshot has been fetched or attested from this
+  tree; that run needs the estate credential route and is the
+  operator's act. This repo's own GROUND_TRUTH.md, for the record,
+  carries no head citation — attested live, this repo would read
+  UNPINNED until a citation convention line is added to this file.
 - **The package is installable but not published, and consumers still
   do not import it (fix #85).** As of 0.5.0 the package installs
   cleanly from a checkout or sdist of this repo and its sdist can

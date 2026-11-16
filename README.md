@@ -59,6 +59,30 @@ This repo is the one standard they converge on:
    DEMO key (private half destroyed) proving the mechanism — no real
    estate key has been minted yet; that is the operator's act
    (`savage-verify keygen`), and only the public entry gets committed.
+6. **PROOF-E1 — the estate attestation** (`savage_standard/estate.py`,
+   CLI subcommand `estate`) — the estate attested in ONE command.
+   From a single snapshot (org, time, and per repo: default-branch
+   head, GROUND_TRUTH.md text, latest workflow runs) it derives, per
+   repo: the GT citation state (MISSING / UNPINNED / CURRENT /
+   DRIFTED against the head, with the `Last verified` date aged
+   against the snapshot time), the latest-per-workflow CI state
+   (PASSING / FAILING / IN_PROGRESS / NONE_RECORDED — no state is
+   ever a silent pass), and the claims-inventory rows whose claim or
+   basis text names the repo. The artifact
+   (`savage.estate_attestation.v1`) embeds the snapshot verbatim and
+   is sealed with a SHA-256 digest over its canonical JSON;
+   `savage-verify estate --check` recomputes the digest AND
+   re-derives every record from the embedded snapshot, so a tampered
+   verdict or count is caught even under an honestly recomputed
+   digest. Before this build the CLI had no estate subcommand:
+   repositories attested per run = **0**. Operators with a GitHub
+   token can collect the snapshot live
+   (`savage_standard/estate_fetch.py`, `--org ORG --fetch`, token
+   from `$GITHUB_TOKEN`). What the attestation does NOT do: it
+   reports GT *citation* drift, it does not re-verify GT contents;
+   CI state is the latest *recorded* runs, not a re-run of any
+   suite; claims receipt status is carried from the claims
+   inventory, not re-adjudicated.
 
 ## Why a new tiny repo
 
@@ -102,7 +126,10 @@ python3 -m savage_standard.cli claims
 python3 -m savage_standard.cli recompute PER_INSTANCE_STATS.json --metric exact_match --split valid ... (see --help)  # mint an external-benchmark recompute receipt
 python3 -m savage_standard.cli keygen --key-id ID --out ~/outside-any-repo/estate.key.json   # operator only: prints the PUBLIC registry entry; the private key never enters a repo
 python3 -m savage_standard.cli sign ENVELOPE.json --key-file ~/outside-any-repo/estate.key.json -o SIGNED.json
-python3 -m unittest discover -s tests   # 74 tests: genuine + tamper per dialect, incl. the HELM recompute dialect, envelope signatures, the signed delivery-pair bridge, and the atlas-call dialect
+python3 -m savage_standard.cli estate --snapshot SNAPSHOT.json -o ATTESTATION.json   # PROOF-E1: exit 0 = no failures, 1 = attested WITH named failures, 2 = usage/input error
+python3 -m savage_standard.cli estate --check ATTESTATION.json                       # verify a sealed attestation (digest + full re-derivation)
+python3 -m savage_standard.cli estate --org Savages-studios --fetch -o ATTESTATION.json   # live snapshot via the GitHub API ($GITHUB_TOKEN)
+python3 -m unittest discover -s tests   # 96 tests: genuine + tamper per dialect, incl. the HELM recompute dialect, envelope signatures, the signed delivery-pair bridge, the atlas-call dialect, and the estate attestation
 ```
 
 Exit codes: 0 = VERIFIED / VERIFIED-STRUCTURAL, 1 = REJECTED,
