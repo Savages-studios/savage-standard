@@ -26,6 +26,9 @@ Snapshot shape (every field below is required unless noted):
                             "url": ..., "amount_minor": ...,
                             "currency": ..., "recurring": ...,
                             "active": true|false}, ...],
+      "asset_classes":    [{"name": ..., "locator": ...,
+                            "manifest_prefixes": [...],
+                            "observations": {...}}, ...],
       "gated":            [{"name": ..., "reason": ...}, ...]
     }
 
@@ -71,6 +74,63 @@ observations all null — transcribed, not cross-verified; the
 distinction is in the record, never hidden, and a registry built
 from a pre-cross-verification snapshot re-derives byte-identically
 (records and summary) under this code.
+
+Asset classes (the transfer payload, this build): an asset class is
+a named body of off-repo payload files — the class that rode the
+Tights-to-Knights transfer gated until the payload landed. An entry
+carries the class's name, its on-host locator, the path prefixes
+that constitute the class inside the transfer manifest (a program
+declaration, carried in the record like a gated entry's reason), and
+per-source observations, declared per source in
+"sources"."asset_classes":
+
+    "asset_classes": {
+      "transfer_manifest": {"repo": ..., "path": ...,
+                            "as_of": ..., "sha256": ...},
+      "pull_verification": {"repo": ..., "path": ...,
+                            "as_of": ..., "sha256": ...},
+      "host_census":       {"repo": ..., "path": ...,
+                            "as_of": ...}}
+
+    "asset_classes": [{"name": ..., "locator": ...,
+                       "manifest_prefixes": [...],
+                       "observations": {
+                         "transfer_manifest": {"file_count": ...},
+                         "pull_verification": {"verified_ok": ...,
+                                               "verify_failed": ...},
+                         "host_census": {"file_count": ...,
+                                         "total_bytes": ...,
+                                         "spot_checked": ...,
+                                         "spot_matched": ...}}}, ...]
+
+The measured fields are file_count, total_bytes, spot_checked,
+spot_matched, verified_ok, verify_failed — each a non-negative
+integer; an observation carries only the fields its process actually
+measured (the manifest carries counts, not bytes; the census carries
+counts, bytes and its own spot hash verification against the
+manifest; the pull verification carries its full-manifest check
+tallies). "transfer_manifest" and "host_census" must both be
+declared; "pull_verification" is optional. The record's measured
+fields are DERIVED exactly as the commercial cross-verification
+derives identity: per field, the latest-as_of source carrying it
+governs. The verdict is likewise derived, never asserted:
+
+- any measured field carried by two or more sources disagrees ->
+  "DISAGREEMENT", with a named failure per disagreed field (the
+  record follows the latest observation);
+- else, the census spot verification matched fewer files than it
+  checked -> "FAILED", with a named failure (a first-hand integrity
+  failure against the manifest);
+- else -> "VERIFIED".
+
+Independently of the verdict, a pull verification that failed any
+file adds a named failure carrying its tallies — the fact is
+recorded, never hidden (the live swarm class is VERIFIED with such
+a failure named: the pull's checker could not open its files at
+their manifest paths — a path-prefix artifact — while the census
+spot verification, over the whole class, matched every hash at the
+registered locator). A registry built from a snapshot with no
+asset_classes section re-derives byte-identically under this code.
 
 Derivation rules (mechanical; no judgment calls at build time):
 
@@ -140,6 +200,20 @@ _IDENTITY_FIELDS = ("product_name", "url", "amount_minor", "currency",
 _BILLING_RECURRING = {"one_time": None, "subscription_month": "month",
                       "subscription_year": "year"}
 
+# Asset-class observation sources, in declaration order. An asset
+# entry's "observations" may carry any non-empty subset of these,
+# but the snapshot must declare "transfer_manifest" and
+# "host_census" (the manifest and the census are the two halves of
+# the measurement; the pull verification is corroboration).
+_ASSET_SOURCES = ("transfer_manifest", "pull_verification",
+                  "host_census")
+_ASSET_REQUIRED_SOURCES = ("transfer_manifest", "host_census")
+
+# The measured fields an asset-class observation may carry. A source
+# carries only the fields its process actually measured.
+_ASSET_FIELDS = ("file_count", "total_bytes", "spot_checked",
+                 "spot_matched", "verified_ok", "verify_failed")
+
 
 def _validate_source(source, label):
     if not isinstance(source, dict):
@@ -199,6 +273,155 @@ def _commercial_sources(snapshot):
         raise ValueError(
             "snapshot commercial sources declare no 'register' source")
     return declared["register"], declared
+
+
+def _asset_sources(snapshot):
+    """The per-source declaration map for asset classes. Unlike the
+    commercial section there is no legacy single-source form: asset
+    classes exist only as cross-observed entries."""
+    sources = snapshot.get("sources")
+    if not isinstance(sources, dict):
+        raise ValueError("snapshot missing 'sources' — no unsourced doors")
+    raw = sources.get("asset_classes")
+    if not isinstance(raw, dict) or not raw:
+        raise ValueError(
+            "snapshot section 'asset_classes' has entries but no "
+            "declared sources in 'sources' — no unsourced doors")
+    declared = {}
+    for name, source in raw.items():
+        if name not in _ASSET_SOURCES:
+            raise ValueError(
+                f"snapshot declares unknown asset-class source {name!r}")
+        declared[name] = _validate_source(source, f"asset_classes.{name}")
+    for name in _ASSET_REQUIRED_SOURCES:
+        if name not in declared:
+            raise ValueError(
+                f"snapshot asset-class sources declare no {name!r} "
+                f"source")
+    return declared
+
+
+def _normalize_asset_observation(name, source_name, obs):
+    """One source's asset-class observation: only the measured
+    fields, each a non-negative integer. Anything else is malformed
+    and raises — observations are measurements, not prose."""
+    if not isinstance(obs, dict) or not obs:
+        raise ValueError(
+            f"asset class {name}: {source_name} observation is not a "
+            f"non-empty object")
+    out = {}
+    for field, value in obs.items():
+        if field not in _ASSET_FIELDS:
+            raise ValueError(
+                f"asset class {name}: {source_name} observation "
+                f"carries unknown field {field!r}")
+        if not isinstance(value, int) or isinstance(value, bool) \
+                or value < 0:
+            raise ValueError(
+                f"asset class {name}: {source_name} observation "
+                f"field {field!r} is not a non-negative integer")
+        out[field] = value
+    return out
+
+
+def _derive_asset_class(entry, sources_map):
+    if not isinstance(entry, dict):
+        raise ValueError("asset class entry is not an object")
+    name = entry.get("name")
+    if not name or not isinstance(name, str):
+        raise ValueError("asset class entry missing 'name'")
+    locator = entry.get("locator")
+    if not locator or not isinstance(locator, str):
+        raise ValueError(f"asset class {name}: entry missing 'locator'")
+    prefixes = entry.get("manifest_prefixes")
+    if not isinstance(prefixes, list) or not prefixes \
+            or not all(isinstance(p, str) and p for p in prefixes):
+        raise ValueError(
+            f"asset class {name}: 'manifest_prefixes' is not a "
+            f"non-empty list of path prefixes")
+    observations = entry.get("observations")
+    if not isinstance(observations, dict) or not observations:
+        raise ValueError(
+            f"asset class {name}: 'observations' is not a non-empty "
+            f"object")
+    for source_name in observations:
+        if source_name not in _ASSET_SOURCES:
+            raise ValueError(
+                f"asset class {name}: unknown observation source "
+                f"{source_name!r}")
+        if source_name not in sources_map:
+            raise ValueError(
+                f"asset class {name}: observation from "
+                f"{source_name!r} but the snapshot declares no source "
+                f"for it — no unsourced doors")
+    present = [n for n in _ASSET_SOURCES if n in observations]
+    normalized = {n: _normalize_asset_observation(name, n,
+                                                  observations[n])
+                  for n in present}
+    # Canonical precedence: latest declared as_of first (the census —
+    # the latest first-hand measurement — governs); ties break by
+    # declaration order, later source winning. Same rule as the
+    # commercial cross-verification.
+    precedence = sorted(
+        present,
+        key=lambda n: (sources_map[n]["as_of"],
+                       _ASSET_SOURCES.index(n)),
+        reverse=True)
+    canonical_fields = {}
+    followed = {}
+    for field in _ASSET_FIELDS:
+        for source_name in precedence:
+            if field in normalized[source_name]:
+                canonical_fields[field] = normalized[source_name][field]
+                followed[field] = source_name
+                break
+    disagreements = []
+    for field in _ASSET_FIELDS:
+        votes = {n: normalized[n][field] for n in present
+                 if field in normalized[n]}
+        if len(set(votes.values())) > 1:
+            disagreements.append((field, votes))
+    failures = []
+    for field, votes in disagreements:
+        detail = ", ".join(f"{n}={votes[n]!r}" for n in present
+                           if n in votes)
+        failures.append(
+            f"cross-verification disagreement on {field}: {detail} "
+            f"(record follows latest observation: {followed[field]})")
+    spot_checked = canonical_fields.get("spot_checked")
+    spot_matched = canonical_fields.get("spot_matched")
+    spot_failed = spot_checked is not None and spot_matched is not None \
+        and spot_matched < spot_checked
+    if spot_failed:
+        failures.append(
+            f"census spot hash verification matched {spot_matched} of "
+            f"{spot_checked} sampled files against the transfer "
+            f"manifest")
+    verify_failed = canonical_fields.get("verify_failed")
+    verified_ok = canonical_fields.get("verified_ok")
+    if verify_failed:
+        checked = (verified_ok or 0) + verify_failed
+        failures.append(
+            f"pull-time manifest verification failed for "
+            f"{verify_failed} of {checked} checked files (tallies "
+            f"carried in the pull_verification observation)")
+    if disagreements:
+        verdict = "DISAGREEMENT"
+    elif spot_failed:
+        verdict = "FAILED"
+    else:
+        verdict = "VERIFIED"
+    record = {"name": name, "kind": "asset_class", "locator": locator,
+              "manifest_prefixes": list(prefixes),
+              "source": sources_map["transfer_manifest"],
+              "sources": sources_map,
+              "observations": copy.deepcopy(observations),
+              "verification": verdict,
+              "verification_sources": present,
+              "failures": failures}
+    for field in _ASSET_FIELDS:
+        record[field] = canonical_fields.get(field)
+    return record
 
 
 def _derive_repo(entry, source):
@@ -413,6 +636,13 @@ def build_registry(snapshot: dict) -> dict:
         source, sources_map = _commercial_sources(snapshot)
         records.extend(_derive_commercial(entry, source, sources_map)
                        for entry in commercial_entries)
+    asset_entries = snapshot.get("asset_classes") or []
+    if not isinstance(asset_entries, list):
+        raise ValueError("snapshot 'asset_classes' is not a list")
+    if asset_entries:
+        asset_map = _asset_sources(snapshot)
+        records.extend(_derive_asset_class(entry, asset_map)
+                       for entry in asset_entries)
     gated_entries = snapshot.get("gated") or []
     if not isinstance(gated_entries, list):
         raise ValueError("snapshot 'gated' is not a list")
@@ -450,6 +680,22 @@ def build_registry(snapshot: dict) -> dict:
         summary["commercial_disagreements"] = sum(
             1 for r in records if r["kind"] == "commercial"
             and r.get("verification") == "DISAGREEMENT")
+    asset_records = [r for r in records if r["kind"] == "asset_class"]
+    if asset_records:
+        summary["asset_classes"] = len(asset_records)
+        summary["asset_files"] = sum(r["file_count"] or 0
+                                     for r in asset_records)
+        summary["asset_bytes"] = sum(r["total_bytes"] or 0
+                                     for r in asset_records)
+        summary["asset_verified"] = sum(
+            1 for r in asset_records
+            if r.get("verification") == "VERIFIED")
+        summary["asset_disagreements"] = sum(
+            1 for r in asset_records
+            if r.get("verification") == "DISAGREEMENT")
+        summary["asset_failed"] = sum(
+            1 for r in asset_records
+            if r.get("verification") == "FAILED")
     artifact = {"kind": KIND, "org": org, "taken_at": taken_at,
                 "snapshot": snapshot, "records": records,
                 "summary": summary, "failures": failures}
@@ -472,6 +718,9 @@ _RECORD_FIELDS = [
     ("reason",), ("source", "repo"), ("source", "path"),
     ("source", "as_of"), ("sources",), ("observations",),
     ("verification",), ("verification_sources",), ("failures",),
+    ("manifest_prefixes",), ("file_count",), ("total_bytes",),
+    ("spot_checked",), ("spot_matched",), ("verified_ok",),
+    ("verify_failed",),
 ]
 
 

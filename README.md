@@ -143,6 +143,20 @@ This repo is the one standard they converge on:
    (SUB-TOOLDIFF-TEAM-79, registered inactive per the latest
    readback); the DOOR-REGISTRY.json asset is un-gated by that
    landing, while the rest of the transfer payload stays gated.
+   The transfer-continuation registry (2026-11-17) registers
+   **124 doors**: the transfer has landed, so its three classes —
+   Forge outputs, the trained Murmuration swarm, Genesis off-repo
+   artifacts — are registered as asset classes, each carrying
+   per-source observations (the transfer manifest, the completed
+   pull's full hash verification, and a first-hand host census
+   with spot hash verification) from which their measured fields
+   (file counts, byte totals, spot and pull tallies) and their
+   verdicts are derived the same way — 120,505 files and
+   19,879,595,632 bytes in total, 2 classes VERIFIED and the
+   Forge class DISAGREEMENT (13 post-manifest files and 2
+   post-manifest content changes, all named in-record). Gated
+   classes drop from 2 to 1: only savage-relay's seats remain
+   gated, awaiting a seats export.
    What the registry does NOT do: it carries its sources' facts at
    their as-of dates — it does not re-observe Stripe, GitHub, or
    any live system; no fetcher ships.

@@ -344,6 +344,227 @@ class CrossTamperTest(unittest.TestCase):
                             for m in mismatches), mismatches)
 
 
+ASSET_SOURCES = {
+    "transfer_manifest": {"repo": "transfer staging",
+                          "path": "manifest-2026-11-08.sha256",
+                          "as_of": "2026-11-08", "sha256": "f" * 64},
+    "pull_verification": {"repo": "transfer pull verification",
+                          "path": "sha256-verify.out",
+                          "as_of": "2026-11-16T08:46:20Z",
+                          "sha256": "e" * 64},
+    "host_census": {"repo": "on-host census",
+                    "path": "~/workspace/transfer-pull/knights-transfer",
+                    "as_of": "2026-11-17T00:00:00Z"},
+}
+
+
+def asset_snapshot():
+    snap = snapshot()
+    snap["sources"]["asset_classes"] = copy.deepcopy(ASSET_SOURCES)
+    snap["asset_classes"] = [
+        {"name": "Trained swarm (gpt-oss-20b)",
+         "locator": "~/workspace/transfer-pull/knights-transfer/"
+                    "gpt-oss-20b",
+         "manifest_prefixes": [
+             "gpt-oss-20b/",
+             "murmuration-cortex-2026-11-05/foundation/gpt-oss-20b/"],
+         "observations": {
+             "transfer_manifest": {"file_count": 14},
+             "pull_verification": {"verified_ok": 0,
+                                   "verify_failed": 14},
+             "host_census": {"file_count": 14,
+                             "total_bytes": 13789264674,
+                             "spot_checked": 14, "spot_matched": 14}}},
+        {"name": "Forge outputs",
+         "locator": "~/workspace/transfer-pull/knights-transfer/"
+                    "forge-video-phase2-2026-11-05",
+         "manifest_prefixes": ["forge-video-phase2-2026-11-05/"],
+         "observations": {
+             "transfer_manifest": {"file_count": 43744},
+             "pull_verification": {"verified_ok": 43742,
+                                   "verify_failed": 2},
+             "host_census": {"file_count": 43757,
+                             "total_bytes": 4642847820,
+                             "spot_checked": 8, "spot_matched": 6}}},
+    ]
+    return snap
+
+
+def asset_record(art, name):
+    return next(r for r in art["records"] if r["name"] == name)
+
+
+class AssetClassTest(unittest.TestCase):
+    def test_verified_class_with_pull_failure_named(self):
+        art = doors.build_registry(asset_snapshot())
+        swarm = asset_record(art, "Trained swarm (gpt-oss-20b)")
+        self.assertEqual(swarm["kind"], "asset_class")
+        self.assertEqual(swarm["verification"], "VERIFIED")
+        self.assertEqual(swarm["file_count"], 14)
+        self.assertEqual(swarm["total_bytes"], 13789264674)
+        self.assertEqual(swarm["verification_sources"],
+                         ["transfer_manifest", "pull_verification",
+                          "host_census"])
+        # The pull's 14 open-or-read failures are carried as a named
+        # failure even though the verdict is VERIFIED — the census
+        # spot check (14/14, the whole class) is the governing
+        # first-hand integrity measurement.
+        self.assertEqual(len(swarm["failures"]), 1)
+        self.assertIn("failed for 14 of 14", swarm["failures"][0])
+        self.assertEqual(art["summary"]["asset_classes"], 2)
+        self.assertEqual(art["summary"]["asset_verified"], 1)
+        self.assertEqual(art["summary"]["doors_registered"], 6)
+        ok, mismatches = doors.verify_registry(art)
+        self.assertTrue(ok, mismatches)
+
+    def test_count_disagreement_follows_census(self):
+        art = doors.build_registry(asset_snapshot())
+        forge = asset_record(art, "Forge outputs")
+        self.assertEqual(forge["verification"], "DISAGREEMENT")
+        self.assertEqual(forge["file_count"], 43757)  # census governs
+        reasons = forge["failures"]
+        self.assertTrue(any("disagreement on file_count" in r
+                            and "transfer_manifest=43744" in r
+                            and "host_census=43757" in r
+                            for r in reasons), reasons)
+        # The spot mismatch and the pull tallies are also named.
+        self.assertTrue(any("matched 6 of 8" in r for r in reasons),
+                        reasons)
+        self.assertTrue(any("failed for 2 of 43744" in r
+                            for r in reasons), reasons)
+        self.assertEqual(art["summary"]["asset_disagreements"], 1)
+        self.assertEqual(art["summary"]["asset_files"],
+                         14 + 43757)
+        ok, _ = doors.verify_registry(art)
+        self.assertTrue(ok)
+
+    def test_spot_failure_alone_is_failed_verdict(self):
+        snap = asset_snapshot()
+        forge = snap["asset_classes"][1]
+        forge["observations"]["host_census"]["file_count"] = 43744
+        forge["observations"]["pull_verification"] = {
+            "verified_ok": 43744, "verify_failed": 0}
+        art = doors.build_registry(snap)
+        forge = asset_record(art, "Forge outputs")
+        self.assertEqual(forge["verification"], "FAILED")
+        self.assertEqual(len(forge["failures"]), 1)
+        self.assertIn("matched 6 of 8", forge["failures"][0])
+        self.assertEqual(art["summary"]["asset_failed"], 1)
+        ok, _ = doors.verify_registry(art)
+        self.assertTrue(ok)
+
+    def test_asset_only_snapshot_registers(self):
+        snap = asset_snapshot()
+        snap["repos"] = []
+        snap["commercial_doors"] = []
+        art = doors.build_registry(snap)
+        self.assertEqual(art["summary"]["doors_registered"], 2)
+
+    def test_unsourced_observation_refused(self):
+        snap = asset_snapshot()
+        del snap["sources"]["asset_classes"]["host_census"]
+        with self.assertRaises(ValueError):
+            doors.build_registry(snap)
+
+    def test_missing_required_source_refused(self):
+        snap = asset_snapshot()
+        del snap["sources"]["asset_classes"]["transfer_manifest"]
+        with self.assertRaises(ValueError):
+            doors.build_registry(snap)
+
+    def test_malformed_entries_refused(self):
+        snap = asset_snapshot()
+        del snap["asset_classes"][0]["locator"]
+        with self.assertRaises(ValueError):
+            doors.build_registry(snap)
+        snap = asset_snapshot()
+        snap["asset_classes"][0]["manifest_prefixes"] = []
+        with self.assertRaises(ValueError):
+            doors.build_registry(snap)
+        snap = asset_snapshot()
+        snap["asset_classes"][0]["observations"]["host_census"][
+            "file_count"] = -1
+        with self.assertRaises(ValueError):
+            doors.build_registry(snap)
+        snap = asset_snapshot()
+        snap["asset_classes"][0]["observations"]["host_census"][
+            "owner"] = "tights"
+        with self.assertRaises(ValueError):
+            doors.build_registry(snap)
+
+
+class AssetTamperTest(unittest.TestCase):
+    """Planted controls for asset classes: the verdict and the
+    measured fields are recomputed from the snapshot's embedded
+    observations and source declarations, so tampering — each time
+    honestly re-digested — is REJECTED naming door + field."""
+
+    def test_flipped_census_count_redigested_rejected(self):
+        art = doors.build_registry(asset_snapshot())
+        asset_record(art, "Forge outputs")["file_count"] = 43744
+        redigest(art)
+        ok, mismatches = doors.verify_registry(art)
+        self.assertFalse(ok)
+        self.assertTrue(any("Forge outputs" in m and "file_count" in m
+                            for m in mismatches), mismatches)
+
+    def test_flipped_total_bytes_redigested_rejected(self):
+        art = doors.build_registry(asset_snapshot())
+        asset_record(art, "Trained swarm (gpt-oss-20b)")[
+            "total_bytes"] = 1
+        redigest(art)
+        ok, mismatches = doors.verify_registry(art)
+        self.assertFalse(ok)
+        self.assertTrue(any("gpt-oss-20b" in m and "total_bytes" in m
+                            for m in mismatches), mismatches)
+
+    def test_erased_failure_redigested_rejected(self):
+        art = doors.build_registry(asset_snapshot())
+        forge = asset_record(art, "Forge outputs")
+        forge["failures"] = []
+        art["failures"] = [f for f in art["failures"]
+                           if f["door"] != "Forge outputs"]
+        redigest(art)
+        ok, mismatches = doors.verify_registry(art)
+        self.assertFalse(ok)
+        self.assertTrue(any("failures" in m for m in mismatches),
+                        mismatches)
+
+    def test_upgraded_verdict_redigested_rejected(self):
+        art = doors.build_registry(asset_snapshot())
+        asset_record(art, "Forge outputs")["verification"] = "VERIFIED"
+        redigest(art)
+        ok, mismatches = doors.verify_registry(art)
+        self.assertFalse(ok)
+        self.assertTrue(any("Forge outputs" in m
+                            and "verification" in m
+                            for m in mismatches), mismatches)
+
+    def test_flipped_manifest_digest_redigested_rejected(self):
+        art = doors.build_registry(asset_snapshot())
+        asset_record(art, "Forge outputs")["sources"][
+            "transfer_manifest"]["sha256"] = "0" * 64
+        redigest(art)
+        ok, mismatches = doors.verify_registry(art)
+        self.assertFalse(ok)
+        self.assertTrue(any("Forge outputs" in m and "sources" in m
+                            for m in mismatches), mismatches)
+
+    def test_dropped_asset_record_redigested_rejected(self):
+        art = doors.build_registry(asset_snapshot())
+        art["records"] = [r for r in art["records"]
+                          if r["kind"] != "asset_class"]
+        art["summary"]["doors_registered"] = 4
+        for key in [k for k in art["summary"]
+                    if k.startswith("asset_")]:
+            del art["summary"][key]
+        redigest(art)
+        ok, mismatches = doors.verify_registry(art)
+        self.assertFalse(ok)
+        self.assertTrue(any("records" in m or "summary" in m
+                            for m in mismatches), mismatches)
+
+
 class CliTest(unittest.TestCase):
     def _run(self, argv):
         with tempfile.TemporaryDirectory() as td:

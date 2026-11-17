@@ -66,7 +66,7 @@ the component table, Metrics, and "What is NOT true".
 | `savage_standard/estate_fetch.py` — PROOF-E1 snapshot fetcher for token holders: stdlib `urllib` against api.github.com (org repos paginated; per repo default-branch head, GROUND_TRUTH.md via contents API with 404 → null, up to 5 latest default-branch workflow runs) | BUILT; network path NOT exercised by the suite | The suite proves only the CLI's token-missing refusal (exit 2 with `$GITHUB_TOKEN` unset) and never calls the network; the live org-wide fetch is the operator's run (Knights, with the estate credential route). |
 | `savage_standard/gate.py` — the estate claim gate: scans a materialized repo tree's public documents (root Markdown + `docs/` tree; apparatus `ARTIFACT_INDEX.md` / `GROUND_TRUTH.md` excluded) for claims under the Savage-AI-style linter's rule set (claim patterns, claim-state vocabulary, label forms, qualification forms, exemptions — re-implemented clean-room from that linter's documented behavior; no import, no runtime dependency), extracts each claim's stated state, and refutes it under four documented mechanical contradiction rules (C1 verified vs attestation GT DRIFTED/MISSING; C2 verified vs attestation CI FAILING; C3 verified vs a tree with no root GROUND_TRUTH.md, only when no attestation record is in play; C4 LIVE vs attestation CI FAILING or GT MISSING), plus the GT-budget rule (DRIFTED/MISSING count for the record in play vs `--gt-budget`, default 0). A supplied attestation is verified via `estate.verify_artifact` before any verdict is taken from it; an unverifying artifact or a missing record is a named failure, never a silent pass | VERIFIED by planted controls | `tests/test_gate.py` (17 tests) incl. fixture trees under `tests/fixtures/gate/`: the BAD fixture (one unlabeled throughput claim + one verified-labeled claim under a DRIFTED attestation) FAILs naming both the UNLABELED and the CONTRADICTED failure; the CLEAN fixture (labeled claims, CURRENT/PASSING attestation) PASSes; C2/C3/C4 each pinned by a dedicated control; a re-digested tampered attestation is an ATTESTATION failure and its verdicts are never used; budget 0 fails / budget 1 passes the same DRIFTED record against clean docs. |
 | `.github/workflows/claim-gate.yml` — reusable GitHub Actions workflow (`workflow_call`, plus push/PR/dispatch on this repo) running `savage-verify gate` over the checked-out tree and the full suite in a second job | BUILT; NOT yet run in GitHub Actions | The workflow file is new in this landing — this repo carried no `.github/workflows/` at all before it — so no Actions run of it exists yet; its steps mirror the exact local commands proven in the PR body. |
-| `savage_standard/doors.py` — DATA-E1 door registry: derives one record per named asset ("door") from a snapshot composed of landed sources (org repos; commercial payment doors), each section carrying a declared source ({repo, path, as_of}) — a section with entries but no declared source raises; gated entries (asset classes not enumerable from landed sources) carried verbatim with locator null and their reason; the sealed `savage.door_registry.v1` artifact (snapshot embedded verbatim, SHA-256 over the JCS canonical form) and `verify_registry` (digest recompute + full re-derivation compare, mismatches naming door + field). A zero-door snapshot is refused; an inactive commercial door registers WITH a named failure; duplicate (kind, name) names a failure on the later record. Cross-verification (this build): a commercial entry may carry per-source observations (register / registry of record / readback, each declared in `sources` with repo/path/as_of — the registry of record's declaration also carries its file SHA-256); the record's identity fields and its verification verdict are DERIVED from the observations (all sources agreeing on a field → VERIFIED with the sources named; any disagreement → DISAGREEMENT, the record follows the latest-as_of source per field, and a named failure records which sources held which value on which field); entries without observations derive exactly as before (verification null) and a pre-cross-verification artifact re-derives byte-identically under this code | VERIFIED incl. a live cross-verified registry | `tests/test_doors.py` (24 tests): build counts/kinds, verify round-trip, inactive-door and duplicate-name named failures, zero-door and unsourced-section refusals, malformed-entry refusals, re-digested tamper controls (flipped locator, erased failure, dropped gated record all REJECTED), stale-digest and wrong-kind rejection, CLI build + check exits; cross-verification: agreeing sources VERIFIED with sources named, active/amount disagreements following the readback with named failures, agreed-inactive VERIFIED with the not-active failure, unsourced-observation and unknown-billing refusals, legacy entries carrying no verification, and re-digested cross tamper controls (flipped observation, erased disagreement, upgraded verdict, flipped canonical field all REJECTED). First live registry (2026-11-16): 121 doors, digest `8dbc4385…`, `--check` VERIFIED. Cross-verified live registry (2026-11-16): 121 doors, 75/76 commercial VERIFIED, 1 named disagreement, digest `679dc471…`, `--check` VERIFIED — see Metrics. |
+| `savage_standard/doors.py` — DATA-E1 door registry: derives one record per named asset ("door") from a snapshot composed of landed sources (org repos; commercial payment doors), each section carrying a declared source ({repo, path, as_of}) — a section with entries but no declared source raises; gated entries (asset classes not enumerable from landed sources) carried verbatim with locator null and their reason; the sealed `savage.door_registry.v1` artifact (snapshot embedded verbatim, SHA-256 over the JCS canonical form) and `verify_registry` (digest recompute + full re-derivation compare, mismatches naming door + field). A zero-door snapshot is refused; an inactive commercial door registers WITH a named failure; duplicate (kind, name) names a failure on the later record. Cross-verification (this build): a commercial entry may carry per-source observations (register / registry of record / readback, each declared in `sources` with repo/path/as_of — the registry of record's declaration also carries its file SHA-256); the record's identity fields and its verification verdict are DERIVED from the observations (all sources agreeing on a field → VERIFIED with the sources named; any disagreement → DISAGREEMENT, the record follows the latest-as_of source per field, and a named failure records which sources held which value on which field); entries without observations derive exactly as before (verification null) and a pre-cross-verification artifact re-derives byte-identically under this code | VERIFIED incl. a live cross-verified registry | `tests/test_doors.py` (37 tests): build counts/kinds, verify round-trip, inactive-door and duplicate-name named failures, zero-door and unsourced-section refusals, malformed-entry refusals, re-digested tamper controls (flipped locator, erased failure, dropped gated record all REJECTED), stale-digest and wrong-kind rejection, CLI build + check exits; cross-verification: agreeing sources VERIFIED with sources named, active/amount disagreements following the readback with named failures, agreed-inactive VERIFIED with the not-active failure, unsourced-observation and unknown-billing refusals, legacy entries carrying no verification, and re-digested cross tamper controls (flipped observation, erased disagreement, upgraded verdict, flipped canonical field all REJECTED); asset classes: VERIFIED class carrying a named pull-verification failure, count disagreement following the census with spot/pull failures named, spot-failure-only FAILED verdict, asset-only snapshot registering, unsourced-observation / missing-required-source / malformed-entry refusals, and re-digested asset tamper controls (flipped census count, flipped total_bytes, erased failure, upgraded verdict, flipped manifest digest, dropped asset record all REJECTED). First live registry (2026-11-16): 121 doors, digest `8dbc4385…`, `--check` VERIFIED. Cross-verified live registry (2026-11-16): 121 doors, 75/76 commercial VERIFIED, 1 named disagreement, digest `679dc471…`, `--check` VERIFIED — see Metrics. Asset classes (this build): a snapshot may also carry `asset_classes` — the transfer payload's classes, registered with per-source observations (transfer_manifest / pull_verification / host_census, each declared in `sources`; transfer_manifest and host_census must both be declared); the record's measured fields (file_count, total_bytes, spot_checked, spot_matched, verified_ok, verify_failed) and its verdict are DERIVED from the observations (a measured field disagreed by two or more sources → DISAGREEMENT following the latest observation, named failure per field; a census spot-verification shortfall → FAILED with a named failure; otherwise VERIFIED; a pull verification that failed any file adds a named failure independently of the verdict). Transfer-continuation live registry (2026-11-17): 124 doors, the three transfer classes registered (120,505 files, 19,879,595,632 bytes; 2 VERIFIED, 1 DISAGREEMENT), gated classes 2 → 1 (relay seats only), digest `3be64a0c…`, `--check` VERIFIED — see Metrics. |
 | `savage_standard/cli.py` — `savage-verify` CLI (verify / wrap / recompute / claims / keygen / sign / estate / gate / doors; `--keys` registry override on verify) | VERIFIED | Smoke-run in the PR body; exit codes 0/1/2 by verdict. `tests/test_signing.py::TestDemoAndCustody::test_cli_keygen_sign_verify` drives keygen→sign→verify end to end. The `estate` subcommand's exits are pinned by `tests/test_estate.py::TestCli`: build 0 (clean) / 1 (attested WITH named failures, printed to stderr) / 2 (usage/input error, incl. empty repos list and unset `$GITHUB_TOKEN`); `--check` 0 iff the artifact verifies, else 1 with mismatches printed. The `gate` subcommand's exits are pinned by `tests/test_gate.py::TestCli`: 1 on the BAD fixture tree, 0 on the CLEAN fixture tree, 2 on a missing tree. The `doors` subcommand's exits are pinned by `tests/test_doors.py::CliTest`: build 0 (clean) with the artifact written, `--check` 0 on the sealed artifact, 1 on a re-digested tampered artifact. |
 | `savage_standard/claims.py` — claims-gate inventory | VERIFIED as an enumeration | Rows cite their sources (site repo main `4efd6486`, marketplace `catalog.json`, Stripe registry, fix-program results). The BEFORE number is definitional — the definition is printed in the module docstring so it can be argued with. |
 | `fixtures/` — real artifacts from the fix program (and, for SIA-E1, one real external artifact) | VERIFIED | `fixtures/PROVENANCE.md` names each artifact's origin. |
@@ -74,6 +74,65 @@ the component table, Metrics, and "What is NOT true".
 
 ## Metrics (Evolution Rule v2)
 
+- DATA-E1 transfer continuation (2026-11-16; BEFORE measured on the
+  EVO-42 tree @ `3d281143`, version 0.9.0): transfer-payload classes
+  registered in the door registry = **0 of 3** — Forge outputs, the
+  trained Murmuration swarm, and Genesis off-repo artifacts sat in
+  one gated entry ("rides the pending ~94 GB transfer"), contents
+  unregistered, because the payload lived off-host. The transfer
+  completed 2026-11-16 (filing 991): the staged tree is on this host
+  at `~/workspace/transfer-pull/knights-transfer/` (120,507 files;
+  staged total 19,902,130,356 bytes — NOT ~94 GB; the estimate is
+  named as an estimate wherever it survives). AFTER (version
+  0.10.0): the three classes are REGISTERED as asset classes, each
+  carrying per-source observations measured for this build — the
+  transfer manifest (as of 2026-11-08; the manifest file's own
+  SHA-256 `3c3776e6…` is declared in the snapshot's source
+  declaration), the completed pull's full `sha256sum -c`
+  verification (as of 2026-11-16T08:46:20Z; output file SHA-256
+  `f7982644…` likewise declared), and a first-hand host census run
+  for this build (file counts, byte totals, and spot hash
+  verification against the manifest: Forge sampled 8 incl. the
+  pull's 2 FAILED files, Genesis 6, the swarm's entire 14-file
+  class hashed). Measured contents: **Forge outputs** 43,757 files
+  / 4,642,847,820 bytes — verdict DISAGREEMENT (manifest counts
+  43,744; the +13 are p22-run files written on the box after the
+  manifest was cut; spot matched 6 of 8 and the pull failed the
+  same 2 files — `p22-run/build_config.py`, changed post-manifest,
+  and `p22-run/phase-a/upload.log`, a live log — each carried as a
+  named failure); **Genesis off-repo artifacts** 76,734 files /
+  1,447,483,138 bytes — VERIFIED (counts agree, pull 76,734/76,734,
+  spot 6/6; the tree also carries 168 pytest-tmp symlinks, not
+  counted as files); **trained Murmuration swarm (gpt-oss-20b)**
+  14 files / 13,789,264,674 bytes — VERIFIED (counts agree after
+  the manifest's `murmuration-cortex-2026-11-05/foundation/`
+  path-prefix normalization, declared in the record's
+  manifest_prefixes; spot 14/14 — the whole class; the pull's
+  checker could not open any of the 14 at their manifest paths, a
+  path artifact carried as a named failure). New live registry
+  (built 2026-11-17T01:14:09Z): **124 doors** (45 repos + 76
+  commercial + 3 asset classes; the repo and commercial sections
+  reproduce the cross-verified registry's records exactly, and the
+  EVO-39/EVO-42 artifacts still verify byte-identically under this
+  code — measured), gated classes **2 → 1** (savage-relay seats
+  only), summary gains `asset_classes` / `asset_files` (120,505) /
+  `asset_bytes` (19,879,595,632) / `asset_verified` (2) /
+  `asset_disagreements` (1) / `asset_failed` (0) only when a
+  snapshot carries asset classes. Artifact digest
+  `3be64a0cbaa4090a1d97b255a90e8b3a5b25e07a8bd1f30f5eb74daeac15fdea`,
+  `savage-verify doors --check` VERIFIED. Tamper controls in
+  `tests/test_doors.py` (24 → 37 tests): flipped census count,
+  flipped total_bytes, erased failure, upgraded verdict, flipped
+  manifest digest in the source declarations, dropped asset record
+  — each honestly re-digested — all REJECTED by re-derivation
+  naming door + field. Suite 137 → 150, zero regressions.
+  Discrepancies against the pre-transfer estimates, named for the
+  fix program: Forge outputs measure 4,642,847,820 bytes against
+  the ~80 GB estimate carried into the transfer commission
+  (≈17× smaller); the swarm measures 13,789,264,674 bytes against
+  ~13 GB (consistent); Genesis artifacts measure 1,447,483,138
+  bytes against ~0.6 GB (≈2.4× larger). The registry registers the
+  measured truth in every case.
 - DATA-E1 cross-verification (2026-11-15; BEFORE measured on the
   EVO-39 tree @ `4ffaa4b2`, version 0.8.0): commercial doors
   cross-verified against a second independent source inside the
@@ -331,18 +390,31 @@ the component table, Metrics, and "What is NOT true".
   reusable workflow, per repo.
 - **The door registry does not cover the whole door universe
   (DATA-E1).** It registers only doors enumerable from landed
-  sources: org repos and the marketplace register's commercial
-  doors. The pending transfer's remaining payload (off-repo model
-  weights, generated media — Forge outputs, the trained
-  Murmuration swarm, Genesis off-repo artifacts) and live runtime
-  state (savage-relay's seats) are carried as GATED entries —
-  named with their reasons, locator null — not as registered
-  doors. They enter the registry only when a landed source
-  enumerates them. The original DOOR-REGISTRY.json is no longer
-  in that gated class: its on-host copy was located, hashed, and
-  cross-verified in this build (see Metrics), so it is un-gated —
-  as a SOURCE of the commercial doors, not as a registered door
-  itself.
+  sources: org repos, the marketplace register's commercial
+  doors, and — since the transfer landed (2026-11-16) — the
+  transfer payload's three classes (Forge outputs, the trained
+  Murmuration swarm, Genesis off-repo artifacts), registered as
+  asset classes with measured contents and their disagreements
+  and verification failures named in-record (see Metrics). Live
+  runtime state (savage-relay's seats) is still carried as a
+  GATED entry — named with its reason, locator null — not as a
+  registered door; it enters the registry only when a landed
+  source (a seats export from the bus) enumerates it. The
+  original DOOR-REGISTRY.json is no longer in that gated class:
+  its on-host copy was located, hashed, and cross-verified in
+  this build (see Metrics), so it is un-gated — as a SOURCE of
+  the commercial doors, not as a registered door itself.
+- **The transfer payload does not measure ~94 GB (DATA-E1).**
+  The gated entry's "~94 GB" was the transfer commission's
+  pre-transfer estimate. Measured on host after the completed
+  pull: the staged tree totals 19,902,130,356 bytes, of which
+  the three registered classes are 19,879,595,632 bytes (Forge
+  outputs 4,642,847,820 — against a ~80 GB estimate for that
+  class; the trained swarm 13,789,264,674; Genesis artifacts
+  1,447,483,138). Nothing in the registry carries the estimate
+  as a measurement; where the estimate survives in older text it
+  is an estimate, and the class records carry the measured
+  counts and bytes with their as-of dates.
 - **The door registry carries its sources' facts at their as-of
   dates; it re-observes nothing live (DATA-E1).** The
   cross-verified live registry's commercial doors rest on three
@@ -356,8 +428,15 @@ the component table, Metrics, and "What is NOT true".
   2026-11-05 as_of is itself declared evidence, not a date the
   file carries: DOOR-REGISTRY.json has no internal date field,
   and the snapshot's source declaration names the provenance
-  the date rests on. No fetcher ships; snapshots are composed
-  by the operator from landed sources.
+  the date rests on. The asset classes likewise rest on their
+  observations' as-of dates (transfer manifest 2026-11-08, pull
+  verification 2026-11-16, host census at the registry's
+  taken_at): the registry does not re-census the payload, so
+  files added to or changed inside the staged tree after the
+  census are registered as the census measured them — the Forge
+  class's DISAGREEMENT verdict and its named post-manifest files
+  are exactly that mechanism working. No fetcher ships;
+  snapshots are composed by the operator from landed sources.
 - **The estate attestation reports GT citation drift; it does not
   re-verify GT contents (PROOF-E1).** A repo whose GROUND_TRUTH.md
   cites its current head is CURRENT even if every sentence in the
